@@ -1,14 +1,36 @@
-// Platform class (mac gets vibrancy + inset traffic lights)
+// Platform class (mac gets inset traffic lights over the rail)
 if (/Mac/.test(navigator.userAgent)) document.body.classList.add('is-mac');
 
 // ---- Lucide-style inline SVG icons ----
+const S = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICONS = {
-  left:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
-  right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
-  reload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
-  edit:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
-  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  left:   S('<polyline points="15 18 9 12 15 6"/>'),
+  right:  S('<polyline points="9 18 15 12 9 6"/>'),
+  reload: S('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
+  edit:   S('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  close:  S('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  nav:    S('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>'),
+  plus:   S('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
+  list:   S('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>'),
+  compose:S('<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>'),
+  sun:    S('<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>'),
+  moon:   S('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
+  reset:  S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
 };
+
+// CSS injected into every X column: hide X's right "who to follow" sidebar,
+// and (optionally) the left nav rail — we provide our own global rail.
+function columnCSS(hideNav) {
+  let css = 'div[data-testid="sidebarColumn"]{display:none!important;}';
+  if (hideNav) {
+    css += 'header[role="banner"]{display:none!important;}'
+         + '[data-testid="primaryColumn"]{border-left:none!important;}';
+  }
+  return css;
+}
+function navHiddenFor(col) {
+  return col.hideNav === undefined ? true : col.hideNav; // hidden by default
+}
 
 // ---- Persistence ----
 const STORE_KEY = 'xdeck.columns.v1';
@@ -18,43 +40,83 @@ const MIN_WIDTH = 240;
 const MAX_WIDTH = 900;
 
 const DEFAULT_COLUMNS = [
-  { title: '主页', url: 'https://x.com/home', width: DEFAULT_WIDTH },
-  { title: '通知', url: 'https://x.com/notifications', width: DEFAULT_WIDTH },
-  { title: 'AVGO / Broadcom', url: 'https://x.com/search?q=AVGO%20OR%20Broadcom&f=live', width: DEFAULT_WIDTH },
-  { title: 'NVDA', url: 'https://x.com/search?q=NVDA%20OR%20Nvidia&f=live', width: DEFAULT_WIDTH },
-  { title: '书签', url: 'https://x.com/i/bookmarks', width: DEFAULT_WIDTH },
+  { title: '主页', url: 'https://x.com/home' },
+  { title: '通知', url: 'https://x.com/notifications' },
+  { title: 'AVGO / Broadcom', url: 'https://x.com/search?q=AVGO%20OR%20Broadcom&f=live' },
+  { title: 'NVDA', url: 'https://x.com/search?q=NVDA%20OR%20Nvidia&f=live' },
+  { title: '书签', url: 'https://x.com/i/bookmarks' },
 ];
 
 function loadColumns() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) {
-      const cols = JSON.parse(raw);
-      // backfill width for older saved configs
-      return cols.map(c => ({ width: DEFAULT_WIDTH, ...c }));
-    }
+    if (raw) return JSON.parse(raw).map(c => ({ width: DEFAULT_WIDTH, ...c }));
   } catch (_) {}
-  return DEFAULT_COLUMNS.map(c => ({ ...c }));
+  return DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }));
 }
-
 function saveColumns() { localStorage.setItem(STORE_KEY, JSON.stringify(columns)); }
-
 let columns = loadColumns();
 
 // ---- Theme ----
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('themeBtn');
-  btn.textContent = theme === 'dark' ? '浅色' : '深色'; // shows what you'll switch TO
+  if (btn) {
+    btn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
+    btn.title = theme === 'dark' ? '切换浅色' : '切换深色';
+  }
   localStorage.setItem(THEME_KEY, theme);
 }
-applyTheme(localStorage.getItem(THEME_KEY) || 'light');
-document.getElementById('themeBtn').onclick = () => {
-  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-};
 
-// ---- Render ----
+// ---- Left rail ----
+function buildRail() {
+  const rail = document.getElementById('rail');
+  rail.innerHTML = '';
+
+  const logo = document.createElement('div');
+  logo.className = 'logo';
+  logo.textContent = 'X';
+  rail.appendChild(logo);
+
+  rail.appendChild(railBtn(ICONS.plus, '添加列', openDialog, true));
+  rail.appendChild(railBtn(ICONS.list, '添加 X 列表', openListDialog));
+  rail.appendChild(railBtn(ICONS.compose, '写推文', () =>
+    window.open('https://x.com/compose/post', '_blank')));
+  rail.appendChild(railBtn(ICONS.reload, '全部刷新', () =>
+    document.querySelectorAll('webview').forEach(wv => wv.reload())));
+
+  const spacer = document.createElement('div');
+  spacer.className = 'rail-spacer';
+  rail.appendChild(spacer);
+
+  const themeBtn = railBtn(ICONS.moon, '切换主题', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+  });
+  themeBtn.id = 'themeBtn';
+  rail.appendChild(themeBtn);
+
+  rail.appendChild(railBtn(ICONS.reset, '恢复默认布局', () => {
+    if (confirm('恢复默认列布局？（自定义的列会清空）')) {
+      columns = DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }));
+      saveColumns();
+      render();
+    }
+  }));
+
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+}
+
+function railBtn(svg, tip, onClick, accent) {
+  const b = document.createElement('button');
+  b.className = 'rail-btn' + (accent ? ' accent' : '');
+  b.innerHTML = svg;
+  b.title = tip;
+  b.onclick = onClick;
+  return b;
+}
+
+// ---- Render columns ----
 const deck = document.getElementById('deck');
 
 function render() {
@@ -70,6 +132,9 @@ function buildColumn(col, idx) {
   const head = document.createElement('div');
   head.className = 'col-head';
 
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+
   const title = document.createElement('span');
   title.className = 'title';
   title.textContent = col.title || col.url;
@@ -78,15 +143,29 @@ function buildColumn(col, idx) {
   wv.setAttribute('src', col.url);
   wv.setAttribute('partition', 'persist:x'); // shared login across all columns
   wv.setAttribute('allowpopups', 'true');
+  wv.addEventListener('dom-ready', () => wv.insertCSS(columnCSS(navHiddenFor(col))));
 
-  head.append(
-    title,
+  // Secondary controls (revealed on hover)
+  const secondary = document.createElement('span');
+  secondary.className = 'secondary';
+
+  const navBtn = mkBtn(ICONS.nav, '显示/隐藏 X 导航栏', () => {
+    col.hideNav = !navHiddenFor(col);
+    navBtn.classList.toggle('on', !col.hideNav);
+    saveColumns();
+    wv.reload();
+  });
+  if (!navHiddenFor(col)) navBtn.classList.add('on');
+
+  secondary.append(
+    navBtn,
     mkBtn(ICONS.left, '左移', () => move(idx, -1)),
     mkBtn(ICONS.right, '右移', () => move(idx, 1)),
-    mkBtn(ICONS.reload, '刷新', () => wv.reload()),
     mkBtn(ICONS.edit, '编辑', () => openDialog(idx)),
     mkBtn(ICONS.close, '删除', () => removeCol(idx)),
   );
+
+  head.append(dot, title, secondary, mkBtn(ICONS.reload, '刷新', () => wv.reload()));
 
   const resizer = document.createElement('div');
   resizer.className = 'resizer';
@@ -105,17 +184,15 @@ function mkBtn(svg, tip, onClick) {
   return b;
 }
 
-// ---- Drag to resize column width ----
+// ---- Drag to resize ----
 function attachResize(handle, wrap, idx) {
   handle.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const startX = e.clientX;
     const startW = wrap.getBoundingClientRect().width;
     document.body.classList.add('resizing');
-
     const onMove = (ev) => {
-      let w = startW + (ev.clientX - startX);
-      w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w));
+      let w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW + (ev.clientX - startX)));
       wrap.style.width = w + 'px';
     };
     const onUp = () => {
@@ -130,7 +207,7 @@ function attachResize(handle, wrap, idx) {
   });
 }
 
-// ---- Reorder / remove ----
+// ---- Reorder / remove / add ----
 function move(idx, dir) {
   const j = idx + dir;
   if (j < 0 || j >= columns.length) return;
@@ -138,16 +215,8 @@ function move(idx, dir) {
   saveColumns();
   render();
 }
-function removeCol(idx) {
-  columns.splice(idx, 1);
-  saveColumns();
-  render();
-}
-function addColumn(col) {
-  columns.push({ width: DEFAULT_WIDTH, ...col });
-  saveColumns();
-  render();
-}
+function removeCol(idx) { columns.splice(idx, 1); saveColumns(); render(); }
+function addColumn(col) { columns.push({ width: DEFAULT_WIDTH, ...col }); saveColumns(); render(); }
 
 // ---- Add / edit dialog ----
 const dlg = document.getElementById('colDialog');
@@ -163,7 +232,6 @@ presetSel.onchange = () => {
     if (!titleInput.value) titleInput.value = presetSel.options[presetSel.selectedIndex].text;
   }
 };
-
 function openDialog(idx) {
   editIndex = (typeof idx === 'number') ? idx : null;
   dlgTitle.textContent = editIndex === null ? '添加列' : '编辑列';
@@ -172,8 +240,6 @@ function openDialog(idx) {
   urlInput.value = editIndex === null ? '' : (columns[editIndex].url || '');
   dlg.showModal();
 }
-
-document.getElementById('addBtn').onclick = () => openDialog();
 document.getElementById('dlgCancel').onclick = () => dlg.close();
 document.getElementById('dlgSave').onclick = () => {
   let url = urlInput.value.trim();
@@ -189,12 +255,7 @@ document.getElementById('dlgSave').onclick = () => {
 const listDlg = document.getElementById('listDialog');
 const listInput = document.getElementById('listInput');
 const listTitleInput = document.getElementById('listTitleInput');
-
-document.getElementById('addListBtn').onclick = () => {
-  listInput.value = '';
-  listTitleInput.value = '';
-  listDlg.showModal();
-};
+function openListDialog() { listInput.value = ''; listTitleInput.value = ''; listDlg.showModal(); }
 document.getElementById('listCancel').onclick = () => listDlg.close();
 document.getElementById('openListsBtn').onclick = () => {
   addColumn({ title: '我的列表', url: 'https://x.com/i/lists' });
@@ -203,26 +264,16 @@ document.getElementById('openListsBtn').onclick = () => {
 document.getElementById('listSave').onclick = () => {
   let v = listInput.value.trim();
   if (!v) return;
-  // Accept full URL, or bare numeric ID
   let url;
   const m = v.match(/lists\/(\d+)/);
   if (m) url = `https://x.com/i/lists/${m[1]}`;
   else if (/^\d+$/.test(v)) url = `https://x.com/i/lists/${v}`;
   else if (/^https?:\/\//.test(v)) url = v;
-  else { url = 'https://x.com/i/lists/' + v; }
+  else url = 'https://x.com/i/lists/' + v;
   addColumn({ title: listTitleInput.value.trim() || 'X 列表', url });
   listDlg.close();
 };
 
-// ---- Toolbar misc ----
-document.getElementById('reloadAllBtn').onclick = () =>
-  document.querySelectorAll('webview').forEach(wv => wv.reload());
-document.getElementById('resetBtn').onclick = () => {
-  if (confirm('恢复默认列布局？（自定义的列会清空）')) {
-    columns = DEFAULT_COLUMNS.map(c => ({ ...c }));
-    saveColumns();
-    render();
-  }
-};
-
+// ---- Boot ----
+buildRail();
 render();

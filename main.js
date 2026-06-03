@@ -15,12 +15,10 @@ function createWindow() {
     minWidth: 640,
     minHeight: 480,
     title: 'XDeck',
-    backgroundColor: isMac ? '#00000000' : '#f5f5f7',
-    // Apple-style clean chrome: hidden inset title bar with traffic lights on mac
+    backgroundColor: '#000000',
+    // Clean chrome: hidden inset title bar puts traffic lights over the left rail
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
-    trafficLightPosition: isMac ? { x: 14, y: 15 } : undefined,
-    vibrancy: isMac ? 'under-window' : undefined,   // frosted-glass backdrop
-    visualEffectState: 'active',
+    trafficLightPosition: isMac ? { x: 14, y: 16 } : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true,
@@ -30,6 +28,16 @@ function createWindow() {
   });
 
   win.loadFile('index.html');
+
+  // Compose / external popups open as a small logged-in window (shared session)
+  win.webContents.setWindowOpenHandler(() => ({
+    action: 'allow',
+    overrideBrowserWindowOptions: {
+      width: 620,
+      height: 700,
+      webPreferences: { partition: 'persist:x' },
+    },
+  }));
   // win.webContents.openDevTools({ mode: 'detach' });
 }
 
