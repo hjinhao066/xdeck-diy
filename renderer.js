@@ -41,9 +41,8 @@ const MAX_WIDTH = 900;
 
 const DEFAULT_COLUMNS = [
   { title: '主页', url: 'https://x.com/home' },
-  { title: '通知', url: 'https://x.com/notifications' },
-  { title: 'AVGO / Broadcom', url: 'https://x.com/search?q=AVGO%20OR%20Broadcom&f=live' },
-  { title: 'NVDA', url: 'https://x.com/search?q=NVDA%20OR%20Nvidia&f=live' },
+  { title: '美股', url: 'https://x.com/i/lists/2059566674173743297' },
+  { title: 'AI', url: 'https://x.com/i/lists/2062302318897611056' },
   { title: '书签', url: 'https://x.com/i/bookmarks' },
 ];
 
@@ -151,13 +150,16 @@ function buildColumn(col) {
   wv.setAttribute('allowpopups', 'true');
   wv.addEventListener('dom-ready', () => wv.insertCSS(columnCSS(navHiddenFor(col))));
 
-  // Keep the column following wherever its webview actually navigates:
-  // nothing is hardcoded — the header title and the saved url always reflect
-  // the page you're really on, so it survives reloads/reordering and restores
-  // to that exact page next launch.
+  // Keep the column following the FEED it's on (home / list / search /
+  // bookmarks / profile), persisting that so it restores next launch. We
+  // deliberately ignore transient drill-downs — opening a single tweet, a
+  // photo/video lightbox, compose, etc. — so a column never gets saved as a
+  // near-black photo overlay and the header keeps showing the feed name.
+  const TRANSIENT = /\/status\/|\/photo\/|\/video\/|\/compose\/|\/intent\/|\/i\/lists\/\d+\/[a-z]/i;
   const syncState = () => {
     const url = wv.getURL();
-    if (url && /^https?:/.test(url) && url !== col.url) col.url = url;
+    if (!url || !/^https?:/.test(url) || TRANSIENT.test(url)) return;
+    if (url !== col.url) col.url = url;
     const t = (wv.getTitle() || '')
       .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
       .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"

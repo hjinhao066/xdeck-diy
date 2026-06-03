@@ -1,11 +1,13 @@
 const { app, BrowserWindow, session, Menu, clipboard, shell } = require('electron');
 const path = require('path');
 
-// History helpers (Electron 30 exposes navigationHistory; keep a fallback).
-const canBack = (c) => (c.navigationHistory ? c.navigationHistory.canGoBack() : c.canGoBack());
-const canFwd  = (c) => (c.navigationHistory ? c.navigationHistory.canGoForward() : c.canGoForward());
-const goBack  = (c) => (c.navigationHistory ? c.navigationHistory.goBack() : c.goBack());
-const goFwd   = (c) => (c.navigationHistory ? c.navigationHistory.goForward() : c.goForward());
+// History helpers. Electron 30 still has webContents.canGoBack()/goBack();
+// newer versions move them to webContents.navigationHistory. Feature-detect
+// the METHOD (the navigationHistory object exists in 30 but without these).
+const canBack = (c) => (typeof c.canGoBack === 'function' ? c.canGoBack() : c.navigationHistory.canGoBack());
+const canFwd  = (c) => (typeof c.canGoForward === 'function' ? c.canGoForward() : c.navigationHistory.canGoForward());
+const goBack  = (c) => (typeof c.goBack === 'function' ? c.goBack() : c.navigationHistory.goBack());
+const goFwd   = (c) => (typeof c.goForward === 'function' ? c.goForward() : c.navigationHistory.goForward());
 
 // Two-finger horizontal swipe → back/forward, injected into each column's page.
 // (When macOS already does native swipe-nav the gesture never reaches JS as a
@@ -19,7 +21,7 @@ const SWIPE_JS = `
     acc += e.deltaX;
     clearTimeout(idle);
     idle = setTimeout(function(){ acc = 0; fired = false; }, 180);
-    if (!fired && Math.abs(acc) > 90) {
+    if (!fired && Math.abs(acc) > 120) {
       fired = true;
       if (acc > 0) history.forward(); else history.back();
     }
