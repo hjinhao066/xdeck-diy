@@ -1,3 +1,15 @@
+// Platform class (mac gets vibrancy + inset traffic lights)
+if (/Mac/.test(navigator.userAgent)) document.body.classList.add('is-mac');
+
+// ---- Lucide-style inline SVG icons ----
+const ICONS = {
+  left:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+  right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  reload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+  edit:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+};
+
 // ---- Persistence ----
 const STORE_KEY = 'xdeck.columns.v1';
 const THEME_KEY = 'xdeck.theme.v1';
@@ -33,10 +45,10 @@ let columns = loadColumns();
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('themeBtn');
-  btn.textContent = theme === 'dark' ? '🌙 深色' : '☀️ 浅色';
+  btn.textContent = theme === 'dark' ? '浅色' : '深色'; // shows what you'll switch TO
   localStorage.setItem(THEME_KEY, theme);
 }
-applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+applyTheme(localStorage.getItem(THEME_KEY) || 'light');
 document.getElementById('themeBtn').onclick = () => {
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   applyTheme(next);
@@ -69,11 +81,11 @@ function buildColumn(col, idx) {
 
   head.append(
     title,
-    mkBtn('‹', '左移', () => move(idx, -1)),
-    mkBtn('›', '右移', () => move(idx, 1)),
-    mkBtn('↻', '刷新', () => wv.reload()),
-    mkBtn('✎', '编辑', () => openDialog(idx)),
-    mkBtn('✕', '删除', () => removeCol(idx)),
+    mkBtn(ICONS.left, '左移', () => move(idx, -1)),
+    mkBtn(ICONS.right, '右移', () => move(idx, 1)),
+    mkBtn(ICONS.reload, '刷新', () => wv.reload()),
+    mkBtn(ICONS.edit, '编辑', () => openDialog(idx)),
+    mkBtn(ICONS.close, '删除', () => removeCol(idx)),
   );
 
   const resizer = document.createElement('div');
@@ -84,9 +96,10 @@ function buildColumn(col, idx) {
   return wrap;
 }
 
-function mkBtn(label, tip, onClick) {
+function mkBtn(svg, tip, onClick) {
   const b = document.createElement('button');
-  b.textContent = label;
+  b.className = 'icon-btn';
+  b.innerHTML = svg;
   b.title = tip;
   b.onclick = onClick;
   return b;

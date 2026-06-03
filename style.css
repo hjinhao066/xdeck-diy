@@ -1,107 +1,163 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ---- Dark theme (default) ---- */
+/* ===== Light (default) — clean Apple gray ===== */
 :root,
-:root[data-theme="dark"] {
-  --bg: #15202b;
-  --panel: #1b2836;
-  --border: #2f3b47;
-  --text: #e7e9ea;
-  --muted: #8899a6;
-  --accent: #1d9bf0;
-  --handle: #2f3b47;
-  --handle-hover: #1d9bf0;
+:root[data-theme="light"] {
+  --bg: transparent;            /* let mac vibrancy show through */
+  --bg-fallback: #f5f5f7;
+  --toolbar: rgba(255, 255, 255, 0.6);
+  --card: #ffffff;
+  --card-head: rgba(250, 250, 252, 0.85);
+  --border: rgba(0, 0, 0, 0.08);
+  --hairline: rgba(0, 0, 0, 0.06);
+  --text: #1d1d1f;
+  --muted: #86868b;
+  --icon: #6e6e73;
+  --icon-hover-bg: rgba(0, 0, 0, 0.06);
+  --accent: #0071e3;
+  --accent-soft: rgba(0, 113, 227, 0.12);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+  --pill-bg: rgba(0, 0, 0, 0.05);
+  --pill-bg-hover: rgba(0, 0, 0, 0.09);
 }
 
-/* ---- Light theme ---- */
-:root[data-theme="light"] {
-  --bg: #ffffff;
-  --panel: #f7f9f9;
-  --border: #cfd9de;
-  --text: #0f1419;
-  --muted: #536471;
-  --accent: #1d9bf0;
-  --handle: #cfd9de;
-  --handle-hover: #1d9bf0;
+/* ===== Dark — soft graphite, not pure black ===== */
+:root[data-theme="dark"] {
+  --bg: transparent;
+  --bg-fallback: #1c1c1e;
+  --toolbar: rgba(30, 30, 32, 0.55);
+  --card: #2c2c2e;
+  --card-head: rgba(44, 44, 46, 0.85);
+  --border: rgba(255, 255, 255, 0.10);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --text: #f5f5f7;
+  --muted: #98989d;
+  --icon: #aeaeb2;
+  --icon-hover-bg: rgba(255, 255, 255, 0.10);
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.20);
+  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 8px 28px rgba(0,0,0,0.45);
+  --pill-bg: rgba(255, 255, 255, 0.08);
+  --pill-bg-hover: rgba(255, 255, 255, 0.14);
 }
 
 html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
+/* On Windows/Linux there's no vibrancy, so paint a solid backdrop */
+body:not(.is-mac) { background: var(--bg-fallback); }
 
+/* ===== Toolbar ===== */
 #toolbar {
-  height: 44px;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  background: var(--toolbar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--hairline);
   -webkit-app-region: drag;
 }
-#toolbar .brand { font-weight: 700; margin-right: 8px; }
-#toolbar button, #toolbar select {
-  -webkit-app-region: no-drag;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 13px;
-  cursor: pointer;
-}
-#toolbar select { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-#toolbar .spacer { flex: 1; }
-#toolbar .ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+body.is-mac #toolbar { padding-left: 84px; } /* clear the traffic lights */
 
+#toolbar .brand {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  margin-right: 6px;
+  opacity: 0.9;
+}
+#toolbar .spacer { flex: 1; }
+
+.btn {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s ease, transform .08s ease;
+  background: var(--pill-bg);
+  color: var(--text);
+}
+.btn:hover { background: var(--pill-bg-hover); }
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.06); }
+
+/* ===== Deck of cards ===== */
 #deck {
   display: flex;
-  height: calc(100% - 44px);
+  gap: 14px;
+  height: calc(100% - 52px);
+  padding: 14px;
   overflow-x: auto;
   overflow-y: hidden;
 }
+#deck::-webkit-scrollbar { height: 10px; }
+#deck::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
 
 .column {
   position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg);
-  border-right: 1px solid var(--border);
-  flex: 0 0 auto;            /* width set inline per-column */
+  flex: 0 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .col-head {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 38px;
-  padding: 0 6px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  gap: 2px;
+  height: 44px;
+  padding: 0 6px 0 14px;
+  background: var(--card-head);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--hairline);
 }
 .col-head .title {
   flex: 1;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.col-head button {
-  background: transparent;
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: none;
-  color: var(--muted);
+  background: transparent;
+  color: var(--icon);
+  border-radius: 7px;
   cursor: pointer;
-  font-size: 14px;
-  padding: 4px 5px;
-  border-radius: 4px;
+  transition: background .15s ease, color .15s ease;
 }
-.col-head button:hover { background: var(--border); color: var(--text); }
+.icon-btn:hover { background: var(--icon-hover-bg); color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; display: block; }
 
 .column webview {
   flex: 1;
@@ -109,45 +165,64 @@ html, body {
   border: none;
 }
 
-/* ---- Drag-to-resize handle on the right edge of each column ---- */
+/* ===== Resize handle ===== */
 .resizer {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 6px;
+  right: -7px;
+  width: 14px;
   height: 100%;
   cursor: col-resize;
   z-index: 5;
-  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.resizer:hover { background: var(--handle-hover); }
+.resizer::after {
+  content: "";
+  width: 3px;
+  height: 40px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background .15s ease;
+}
+.resizer:hover::after { background: var(--accent); }
 body.resizing { cursor: col-resize; user-select: none; }
-body.resizing webview { pointer-events: none; } /* don't let webview swallow drag */
+body.resizing webview { pointer-events: none; }
 
+/* ===== Dialogs ===== */
 dialog {
-  background: var(--panel);
+  background: var(--card);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px;
-  width: 380px;
+  border-radius: 18px;
+  padding: 22px;
+  width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
-dialog h3 { margin-bottom: 8px; }
-dialog .hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
-dialog label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+dialog::backdrop { background: rgba(0,0,0,0.28); backdrop-filter: blur(2px); }
+dialog h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+dialog .hint { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 6px 0 2px; }
+dialog code { background: var(--pill-bg); padding: 1px 5px; border-radius: 5px; font-size: 11.5px; }
+dialog label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin: 14px 0 6px; }
 dialog input, dialog select {
   width: 100%;
-  background: var(--bg);
+  background: var(--bg-fallback);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 10px 12px;
   font-size: 13px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-dialog .row button {
-  border: none; border-radius: 999px; padding: 8px 16px; cursor: pointer; font-size: 13px;
+:root[data-theme="dark"] dialog input,
+:root[data-theme="dark"] dialog select { background: rgba(0,0,0,0.25); }
+dialog input:focus, dialog select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
-dialog .row .primary { background: var(--accent); color: #fff; }
-dialog .row .cancel { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-dialog .row .left { margin-right: auto; background: transparent; color: var(--accent); border: 1px solid var(--border); }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 22px; }
+dialog .row .btn { height: 36px; }
+dialog .row .left { margin-right: auto; background: transparent; color: var(--accent); }
+dialog .row .left:hover { background: var(--accent-soft); }

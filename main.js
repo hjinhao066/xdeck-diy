@@ -6,26 +6,34 @@ const CHROME_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
+const isMac = process.platform === 'darwin';
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1600,
     height: 950,
-    title: 'XDeck DIY',
-    backgroundColor: '#15202b',
+    minWidth: 640,
+    minHeight: 480,
+    title: 'XDeck',
+    backgroundColor: isMac ? '#00000000' : '#f5f5f7',
+    // Apple-style clean chrome: hidden inset title bar with traffic lights on mac
+    titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    trafficLightPosition: isMac ? { x: 14, y: 15 } : undefined,
+    vibrancy: isMac ? 'under-window' : undefined,   // frosted-glass backdrop
+    visualEffectState: 'active',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      webviewTag: true,           // allow <webview> columns
+      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
   win.loadFile('index.html');
-  // Uncomment to debug: win.webContents.openDevTools({ mode: 'detach' });
+  // win.webContents.openDevTools({ mode: 'detach' });
 }
 
 app.whenReady().then(() => {
-  // Force a real Chrome UA on the shared X session so login + full UI work.
   const xSession = session.fromPartition('persist:x');
   xSession.setUserAgent(CHROME_UA);
 
@@ -37,5 +45,5 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (!isMac) app.quit();
 });

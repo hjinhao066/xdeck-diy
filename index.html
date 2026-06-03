@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-theme="dark">
+<html data-theme="light">
 <head>
   <meta charset="utf-8" />
   <title>XDeck DIY</title>
@@ -7,13 +7,13 @@
 </head>
 <body>
   <div id="toolbar">
-    <span class="brand">🗂️ XDeck DIY</span>
-    <button id="addBtn">+ 添加列</button>
-    <button id="addListBtn" class="ghost">+ 列表 List</button>
-    <button id="reloadAllBtn" class="ghost">↻ 全部刷新</button>
+    <span class="brand">XDeck</span>
+    <button id="addBtn" class="btn primary">＋ 添加列</button>
+    <button id="addListBtn" class="btn">＋ 列表</button>
+    <button id="reloadAllBtn" class="btn">全部刷新</button>
     <span class="spacer"></span>
-    <button id="themeBtn" class="ghost">🌙 深色</button>
-    <button id="resetBtn" class="ghost">恢复默认</button>
+    <button id="themeBtn" class="btn">深色</button>
+    <button id="resetBtn" class="btn">恢复默认</button>
   </div>
 
   <div id="deck"></div>
@@ -39,8 +39,8 @@
     <label>URL（任意 x.com 页面：列表、个人页、搜索…）</label>
     <input id="urlInput" placeholder="https://x.com/..." />
     <div class="row">
-      <button class="cancel" id="dlgCancel">取消</button>
-      <button class="primary" id="dlgSave">保存</button>
+      <button class="btn" id="dlgCancel">取消</button>
+      <button class="btn primary" id="dlgSave">保存</button>
     </div>
   </dialog>
 
@@ -57,9 +57,9 @@
     <label>标题</label>
     <input id="listTitleInput" placeholder="例如：半导体大佬" />
     <div class="row">
-      <button class="left" id="openListsBtn">打开我的列表 ↗</button>
-      <button class="cancel" id="listCancel">取消</button>
-      <button class="primary" id="listSave">保存</button>
+      <button class="btn left" id="openListsBtn">打开我的列表 ↗</button>
+      <button class="btn" id="listCancel">取消</button>
+      <button class="btn primary" id="listSave">保存</button>
     </div>
   </dialog>
 
