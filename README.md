@@ -21,21 +21,35 @@
 - 移动列 `‹ ›`、单列刷新 `↻`、全部刷新、恢复默认
 - 所有布局（列、顺序、宽度、主题）自动存本地，下次打开还在
 
-## 运行
+## 🪟 在 Windows 上跑（从零开始，照抄即可）
+
+1. **装 Node.js**：去 https://nodejs.org 下 LTS 版，一路下一步装完。
+   （装好后开 PowerShell 输 `node -v` 能出版本号就行）
+
+2. **装 Git**（如果没有）：https://git-scm.com/download/win
+
+3. **拉代码**：在 PowerShell 里逐行运行
+   ```powershell
+   git clone https://github.com/hjinhao066/xdeck-diy.git
+   cd xdeck-diy
+   npm install
+   npm start
+   ```
+
+4. 窗口打开后，在任意一列登录一次 x.com —— 所有列就都登录好了。
+
+> 以后更新：在 `xdeck-diy` 目录里 `git pull` 然后 `npm start` 即可。
+
+## 🍎 在 Mac 上跑
 
 ```bash
+git clone https://github.com/hjinhao066/xdeck-diy.git
+cd xdeck-diy
 npm install
 npm start
 ```
 
-首次在任意一列登录 x.com，登录后所有列都登录好。
-
-### Windows 上跑
-完全一样：装好 [Node.js](https://nodejs.org)，然后在项目目录里
-```bash
-npm install
-npm start
-```
+首次在任意一列登录 x.com，登录后所有列都登录好。布局/主题自动存本地。
 
 ## 常用 URL 模板
 - 主页：`https://x.com/home`
