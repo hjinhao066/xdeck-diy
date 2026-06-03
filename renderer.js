@@ -121,10 +121,16 @@ const deck = document.getElementById('deck');
 
 function render() {
   deck.innerHTML = '';
-  columns.forEach((col, idx) => deck.appendChild(buildColumn(col, idx)));
+  columns.forEach((col) => deck.appendChild(buildColumn(col)));
+  // Stagger the initial loads. Firing every column at x.com simultaneously
+  // on the same session makes X's anti-bot throttle the boot, leaving every
+  // column stuck on the splash screen. Load them one-by-one instead.
+  deck.querySelectorAll('webview').forEach((wv, i) => {
+    setTimeout(() => wv.setAttribute('src', wv.dataset.url), i * 600);
+  });
 }
 
-function buildColumn(col, idx) {
+function buildColumn(col) {
   const wrap = document.createElement('div');
   wrap.className = 'column';
   wrap.style.width = (col.width || DEFAULT_WIDTH) + 'px';
@@ -140,10 +146,28 @@ function buildColumn(col, idx) {
   title.textContent = col.title || col.url;
 
   const wv = document.createElement('webview');
-  wv.setAttribute('src', col.url);
+  wv.dataset.url = col.url; // src is set later, staggered, in render()
   wv.setAttribute('partition', 'persist:x'); // shared login across all columns
   wv.setAttribute('allowpopups', 'true');
   wv.addEventListener('dom-ready', () => wv.insertCSS(columnCSS(navHiddenFor(col))));
+
+  // Keep the column following wherever its webview actually navigates:
+  // nothing is hardcoded — the header title and the saved url always reflect
+  // the page you're really on, so it survives reloads/reordering and restores
+  // to that exact page next launch.
+  const syncState = () => {
+    const url = wv.getURL();
+    if (url && /^https?:/.test(url) && url !== col.url) col.url = url;
+    const t = (wv.getTitle() || '')
+      .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
+      .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"
+      .trim();
+    if (t) { col.title = t; title.textContent = t; }
+    saveColumns();
+  };
+  wv.addEventListener('did-navigate', syncState);
+  wv.addEventListener('did-navigate-in-page', syncState);
+  wv.addEventListener('page-title-updated', syncState);
 
   // Secondary controls (revealed on hover)
   const secondary = document.createElement('span');
@@ -159,17 +183,17 @@ function buildColumn(col, idx) {
 
   secondary.append(
     navBtn,
-    mkBtn(ICONS.left, '左移', () => move(idx, -1)),
-    mkBtn(ICONS.right, '右移', () => move(idx, 1)),
-    mkBtn(ICONS.edit, '编辑', () => openDialog(idx)),
-    mkBtn(ICONS.close, '删除', () => removeCol(idx)),
+    mkBtn(ICONS.left, '左移', () => move(col, -1)),
+    mkBtn(ICONS.right, '右移', () => move(col, 1)),
+    mkBtn(ICONS.edit, '编辑', () => openDialog(columns.indexOf(col))),
+    mkBtn(ICONS.close, '删除', () => removeCol(col)),
   );
 
   head.append(dot, title, secondary, mkBtn(ICONS.reload, '刷新', () => wv.reload()));
 
   const resizer = document.createElement('div');
   resizer.className = 'resizer';
-  attachResize(resizer, wrap, idx);
+  attachResize(resizer, wrap, col);
 
   wrap.append(head, wv, resizer);
   return wrap;
@@ -185,7 +209,7 @@ function mkBtn(svg, tip, onClick) {
 }
 
 // ---- Drag to resize ----
-function attachResize(handle, wrap, idx) {
+function attachResize(handle, wrap, col) {
   handle.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -199,7 +223,7 @@ function attachResize(handle, wrap, idx) {
       document.body.classList.remove('resizing');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      columns[idx].width = Math.round(wrap.getBoundingClientRect().width);
+      col.width = Math.round(wrap.getBoundingClientRect().width);
       saveColumns();
     };
     document.addEventListener('mousemove', onMove);
@@ -208,14 +232,19 @@ function attachResize(handle, wrap, idx) {
 }
 
 // ---- Reorder / remove / add ----
-function move(idx, dir) {
+function move(col, dir) {
+  const idx = columns.indexOf(col);
   const j = idx + dir;
   if (j < 0 || j >= columns.length) return;
   [columns[idx], columns[j]] = [columns[j], columns[idx]];
   saveColumns();
-  render();
+  // Reorder the DOM nodes only — keep the live webviews so the column
+  // doesn't reload (which previously reset it back to its home URL).
+  const nodes = deck.children;
+  if (dir === 1) deck.insertBefore(nodes[j], nodes[idx]);
+  else deck.insertBefore(nodes[idx], nodes[j]);
 }
-function removeCol(idx) { columns.splice(idx, 1); saveColumns(); render(); }
+function removeCol(col) { columns.splice(columns.indexOf(col), 1); saveColumns(); render(); }
 function addColumn(col) { columns.push({ width: DEFAULT_WIDTH, ...col }); saveColumns(); render(); }
 
 // ---- Add / edit dialog ----
