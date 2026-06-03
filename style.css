@@ -1,0 +1,153 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---- Dark theme (default) ---- */
+:root,
+:root[data-theme="dark"] {
+  --bg: #15202b;
+  --panel: #1b2836;
+  --border: #2f3b47;
+  --text: #e7e9ea;
+  --muted: #8899a6;
+  --accent: #1d9bf0;
+  --handle: #2f3b47;
+  --handle-hover: #1d9bf0;
+}
+
+/* ---- Light theme ---- */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #f7f9f9;
+  --border: #cfd9de;
+  --text: #0f1419;
+  --muted: #536471;
+  --accent: #1d9bf0;
+  --handle: #cfd9de;
+  --handle-hover: #1d9bf0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+#toolbar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+#toolbar .brand { font-weight: 700; margin-right: 8px; }
+#toolbar button, #toolbar select {
+  -webkit-app-region: no-drag;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+#toolbar select { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+#toolbar .spacer { flex: 1; }
+#toolbar .ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+
+#deck {
+  display: flex;
+  height: calc(100% - 44px);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  flex: 0 0 auto;            /* width set inline per-column */
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+  padding: 0 6px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.col-head .title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.col-head button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 5px;
+  border-radius: 4px;
+}
+.col-head button:hover { background: var(--border); color: var(--text); }
+
+.column webview {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
+
+/* ---- Drag-to-resize handle on the right edge of each column ---- */
+.resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 5;
+  background: transparent;
+}
+.resizer:hover { background: var(--handle-hover); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing webview { pointer-events: none; } /* don't let webview swallow drag */
+
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  width: 380px;
+}
+dialog h3 { margin-bottom: 8px; }
+dialog .hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
+dialog label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+dialog input, dialog select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+}
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+dialog .row button {
+  border: none; border-radius: 999px; padding: 8px 16px; cursor: pointer; font-size: 13px;
+}
+dialog .row .primary { background: var(--accent); color: #fff; }
+dialog .row .cancel { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+dialog .row .left { margin-right: auto; background: transparent; color: var(--accent); border: 1px solid var(--border); }

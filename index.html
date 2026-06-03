@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>XDeck DIY</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="toolbar">
+    <span class="brand">🗂️ XDeck DIY</span>
+    <button id="addBtn">+ 添加列</button>
+    <button id="addListBtn" class="ghost">+ 列表 List</button>
+    <button id="reloadAllBtn" class="ghost">↻ 全部刷新</button>
+    <span class="spacer"></span>
+    <button id="themeBtn" class="ghost">🌙 深色</button>
+    <button id="resetBtn" class="ghost">恢复默认</button>
+  </div>
+
+  <div id="deck"></div>
+
+  <!-- Add / edit column dialog -->
+  <dialog id="colDialog">
+    <h3 id="dlgTitle">添加列</h3>
+    <label>预设</label>
+    <select id="presetSel">
+      <option value="">— 自定义 —</option>
+      <option value="https://x.com/home">主页 Home</option>
+      <option value="https://x.com/notifications">通知 Notifications</option>
+      <option value="https://x.com/messages">私信 Messages</option>
+      <option value="https://x.com/i/bookmarks">书签 Bookmarks</option>
+      <option value="https://x.com/i/lists">我的列表 Lists（总览）</option>
+      <option value="https://x.com/search?q=AVGO%20OR%20Broadcom&f=live">搜索: AVGO/Broadcom</option>
+      <option value="https://x.com/search?q=NVDA%20OR%20Nvidia&f=live">搜索: NVDA</option>
+      <option value="https://x.com/search?q=%24SPY%20OR%20%24QQQ&f=live">搜索: $SPY/$QQQ</option>
+      <option value="https://x.com/explore/tabs/news">新闻 News</option>
+    </select>
+    <label>标题</label>
+    <input id="titleInput" placeholder="例如：NVDA 实时" />
+    <label>URL（任意 x.com 页面：列表、个人页、搜索…）</label>
+    <input id="urlInput" placeholder="https://x.com/..." />
+    <div class="row">
+      <button class="cancel" id="dlgCancel">取消</button>
+      <button class="primary" id="dlgSave">保存</button>
+    </div>
+  </dialog>
+
+  <!-- Add X List dialog -->
+  <dialog id="listDialog">
+    <h3>添加 X 列表（List）</h3>
+    <p class="hint">
+      贴上列表链接或列表 ID 即可。<br>
+      不知道 ID？点下方「打开我的列表」，进去点开某个列表，
+      复制地址栏的 <code>https://x.com/i/lists/数字</code>。
+    </p>
+    <label>列表链接或 ID</label>
+    <input id="listInput" placeholder="https://x.com/i/lists/1234567890  或  1234567890" />
+    <label>标题</label>
+    <input id="listTitleInput" placeholder="例如：半导体大佬" />
+    <div class="row">
+      <button class="left" id="openListsBtn">打开我的列表 ↗</button>
+      <button class="cancel" id="listCancel">取消</button>
+      <button class="primary" id="listSave">保存</button>
+    </div>
+  </dialog>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

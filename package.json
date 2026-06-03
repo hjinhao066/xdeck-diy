@@ -1,0 +1,30 @@
+{
+  "name": "xdeck-diy",
+  "version": "1.0.0",
+  "description": "DIY multi-column X (Twitter) deck - TweetDeck/X Pro alternative for Win & Mac",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "author": "jinhao",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.jinhao.xdeckdiy",
+    "productName": "XDeck DIY",
+    "files": ["main.js", "preload.js", "index.html", "renderer.js", "style.css"],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.social-networking"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
