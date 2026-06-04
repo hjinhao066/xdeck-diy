@@ -168,6 +168,12 @@ body.is-mac #rail { padding-top: 44px; } /* clear the traffic lights */
   transition: background .15s ease, color .15s ease;
 }
 .icon-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.icon-btn:disabled {
+  color: var(--muted);
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent !important;
+}
 .icon-btn.on { color: var(--accent); }
 .icon-btn svg { width: 17px; height: 17px; display: block; }
 

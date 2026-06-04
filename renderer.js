@@ -4,18 +4,20 @@ if (/Mac/.test(navigator.userAgent)) document.body.classList.add('is-mac');
 // ---- Lucide-style inline SVG icons ----
 const S = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICONS = {
-  left:   S('<polyline points="15 18 9 12 15 6"/>'),
-  right:  S('<polyline points="9 18 15 12 9 6"/>'),
-  reload: S('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
-  edit:   S('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
-  close:  S('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
-  nav:    S('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>'),
-  plus:   S('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
-  list:   S('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>'),
-  compose:S('<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>'),
-  sun:    S('<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>'),
-  moon:   S('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
-  reset:  S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
+  left:    S('<polyline points="15 18 9 12 15 6"/>'),
+  right:   S('<polyline points="9 18 15 12 9 6"/>'),
+  back:    S('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>'),
+  forward: S('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'),
+  reload:  S('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
+  edit:    S('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  close:   S('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  nav:     S('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>'),
+  plus:    S('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
+  list:    S('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>'),
+  compose: S('<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>'),
+  sun:     S('<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>'),
+  moon:    S('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
+  reset:   S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
 };
 
 // CSS injected into every X column: hide X's right "who to follow" sidebar,
@@ -214,6 +216,23 @@ function buildColumn(col) {
   const secondary = document.createElement('span');
   secondary.className = 'secondary';
 
+  const backBtn = mkBtn(ICONS.back, '后退', () => {
+    if (wv.canGoBack()) wv.goBack();
+  });
+  const fwdBtn = mkBtn(ICONS.forward, '前进', () => {
+    if (wv.canGoForward()) wv.goForward();
+  });
+
+  const updateNavButtons = () => {
+    backBtn.disabled = !wv.canGoBack();
+    fwdBtn.disabled = !wv.canGoForward();
+  };
+
+  wv.addEventListener('did-navigate', updateNavButtons);
+  wv.addEventListener('did-navigate-in-page', updateNavButtons);
+  wv.addEventListener('dom-ready', updateNavButtons);
+  updateNavButtons(); // initial call
+
   const navBtn = mkBtn(ICONS.nav, '显示/隐藏 X 导航栏', () => {
     col.hideNav = !navHiddenFor(col);
     navBtn.classList.toggle('on', !col.hideNav);
@@ -223,6 +242,8 @@ function buildColumn(col) {
   if (!navHiddenFor(col)) navBtn.classList.add('on');
 
   secondary.append(
+    backBtn,
+    fwdBtn,
     navBtn,
     mkBtn(ICONS.left, '左移', () => move(col, -1)),
     mkBtn(ICONS.right, '右移', () => move(col, 1)),
@@ -347,3 +368,20 @@ document.getElementById('listSave').onclick = () => {
 // ---- Boot ----
 buildRail();
 render();
+
+// Global support for mouse side back/forward buttons in the main window
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 3) {
+    const hoveredWebview = document.querySelector('webview:hover');
+    if (hoveredWebview && hoveredWebview.canGoBack()) {
+      e.preventDefault();
+      hoveredWebview.goBack();
+    }
+  } else if (e.button === 4) {
+    const hoveredWebview = document.querySelector('webview:hover');
+    if (hoveredWebview && hoveredWebview.canGoForward()) {
+      e.preventDefault();
+      hoveredWebview.goForward();
+    }
+  }
+});

@@ -27,6 +27,17 @@ const SWIPE_JS = `
       if (acc > 0) history.forward(); else history.back();
     }
   }, { passive: true });
+
+  // Support mouse side buttons (back and forward)
+  addEventListener('mousedown', function(e){
+    if (e.button === 3) {
+      e.preventDefault();
+      history.back();
+    } else if (e.button === 4) {
+      e.preventDefault();
+      history.forward();
+    }
+  });
 })();
 `;
 
