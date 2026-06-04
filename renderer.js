@@ -278,8 +278,6 @@ function buildRail() {
 
   rail.appendChild(railBtn(ICONS.plus, '添加列', openDialog, true));
   rail.appendChild(railBtn(ICONS.list, '添加 X 列表', openListDialog));
-  rail.appendChild(railBtn(ICONS.compose, '写推文', () =>
-    window.open('https://x.com/compose/post', '_blank')));
   rail.appendChild(railBtn(ICONS.reload, '全部刷新', () =>
     document.querySelectorAll('webview').forEach(wv => wv.reload())));
 
@@ -428,8 +426,12 @@ function buildColumn(col) {
   });
 
   const updateNavButtons = () => {
-    backBtn.disabled = (typeof wv.canGoBack === 'function') ? !wv.canGoBack() : true;
-    fwdBtn.disabled = (typeof wv.canGoForward === 'function') ? !wv.canGoForward() : true;
+    // canGoBack/canGoForward throw if the webview isn't attached/dom-ready yet.
+    // Guard so a re-render (account switch, add/remove col) never aborts mid-build.
+    try { backBtn.disabled = (typeof wv.canGoBack === 'function') ? !wv.canGoBack() : true; }
+    catch (_) { backBtn.disabled = true; }
+    try { fwdBtn.disabled = (typeof wv.canGoForward === 'function') ? !wv.canGoForward() : true; }
+    catch (_) { fwdBtn.disabled = true; }
   };
 
   wv.addEventListener('did-navigate', updateNavButtons);
