@@ -137,7 +137,7 @@ app.whenReady().then(() => {
 
   // Merge-save: a window only writes ITS account's slice (+ global theme/fit),
   // so multiple windows editing different accounts never clobber each other.
-  ipcMain.on('save-account-async', (_e, payload) => {
+  ipcMain.on('save-account-sync', (event, payload) => {
     const cfg = readConfig() || { accounts: [], theme: 'dark', fitWindow: false };
     if (!Array.isArray(cfg.accounts)) cfg.accounts = [];
     if (payload && payload.account) {
@@ -148,6 +148,7 @@ app.whenReady().then(() => {
     if (payload && payload.fitWindow !== undefined) cfg.fitWindow = payload.fitWindow;
     if (payload && payload.lastActiveAccount) cfg.lastActiveAccount = payload.lastActiveAccount;
     writeConfig(cfg);
+    event.returnValue = true;
   });
 
   ipcMain.on('delete-account-async', (_e, id) => {
