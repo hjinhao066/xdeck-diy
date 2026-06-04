@@ -133,6 +133,37 @@ function saveColumns() {
 }
 
 // ---- Accounts ----
+// Electron doesn't support window.prompt(), so use our own <dialog> input.
+function promptDialog(message, defaultValue = '') {
+  return new Promise((resolve) => {
+    let dlg = document.getElementById('promptDlg');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'promptDlg';
+      dlg.innerHTML =
+        '<h3 id="promptMsg"></h3>' +
+        '<input id="promptInput" type="text" autocomplete="off" spellcheck="false" />' +
+        '<div class="row">' +
+        '<button class="btn" id="promptCancel">取消</button>' +
+        '<button class="btn primary" id="promptOk">确定</button>' +
+        '</div>';
+      document.body.appendChild(dlg);
+    }
+    const input = dlg.querySelector('#promptInput');
+    dlg.querySelector('#promptMsg').textContent = message;
+    input.value = defaultValue;
+    const done = (val) => { dlg.close(); resolve(val); };
+    dlg.querySelector('#promptOk').onclick = () => done(input.value.trim());
+    dlg.querySelector('#promptCancel').onclick = () => done(null);
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); done(input.value.trim()); }
+      else if (e.key === 'Escape') { e.preventDefault(); done(null); }
+    };
+    dlg.showModal();
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  });
+}
+
 function switchAccount(id) {
   if (id === activeAccountId) return;
   activeAccountId = id;
@@ -142,8 +173,8 @@ function switchAccount(id) {
   render();
   buildAccountMenu();
 }
-function addAccountAndOpen() {
-  const name = (prompt('新账号名称（会在新窗口打开，空白会话需登录一次）：', '账号 ' + (appConfig.accounts.length + 1)) || '').trim();
+async function addAccountAndOpen() {
+  const name = await promptDialog('新账号名称（会在新窗口打开，空白会话需登录一次）：', '账号 ' + (appConfig.accounts.length + 1));
   if (!name) return;
   const id = 'a' + Date.now();
   const acc = { id, name, columns: defaultCols() };
@@ -158,9 +189,9 @@ function addAccountAndOpen() {
 function openCurrentInNewWindow() {
   if (isElectron && window.electronAPI.openAccountWindow) window.electronAPI.openAccountWindow(activeAccountId);
 }
-function renameAccount() {
+async function renameAccount() {
   const acc = getAccount();
-  const name = (prompt('重命名当前账号：', acc.name) || '').trim();
+  const name = await promptDialog('重命名当前账号：', acc.name);
   if (!name) return;
   acc.name = name; saveColumns(); buildAccountMenu();
 }
