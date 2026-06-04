@@ -19,6 +19,7 @@ const ICONS = {
   moon:    S('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
   reset:   S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
   fit:     S('<polyline points="4 7 4 4 7 4"/><polyline points="20 7 20 4 17 4"/><polyline points="4 17 4 20 7 20"/><polyline points="20 17 20 20 17 20"/>'),
+  user:    S('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
 };
 
 // CSS injected into every X column: hide X's right "who to follow" sidebar,
@@ -49,58 +50,173 @@ const DEFAULT_COLUMNS = [
   { title: '书签', url: 'https://x.com/i/bookmarks' },
 ];
 
+function defaultCols() { return DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c })); }
+
+// theme/fitWindow are global; columns are PER ACCOUNT. Each account has its own
+// independent login session (partition) and its own deck layout.
 let appConfig = {
   theme: 'dark',
   fitWindow: false,
-  columns: DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }))
+  accounts: [{ id: 'default', name: '账号 1', columns: defaultCols() }],
 };
+
+// This window is bound to one account, passed by the main process via the URL.
+let activeAccountId = new URLSearchParams(location.search).get('account') || 'default';
 
 const isElectron = typeof window !== 'undefined' && window.electronAPI;
 
+function normalizeConfig(saved) {
+  if (!saved) return;
+  if (saved.theme) appConfig.theme = saved.theme;
+  if (saved.fitWindow !== undefined) appConfig.fitWindow = saved.fitWindow;
+  if (Array.isArray(saved.accounts) && saved.accounts.length) {
+    appConfig.accounts = saved.accounts.map(a => ({
+      id: a.id,
+      name: a.name || '账号',
+      columns: (a.columns || []).map(c => ({ width: DEFAULT_WIDTH, ...c })),
+    }));
+  } else if (Array.isArray(saved.columns)) {
+    // migrate the old single-account config into the accounts model
+    appConfig.accounts = [{ id: 'default', name: '账号 1', columns: saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c })) }];
+  }
+}
+
 function loadConfig() {
   if (isElectron) {
-    try {
-      const saved = window.electronAPI.loadConfig();
-      if (saved) {
-        if (saved.columns) appConfig.columns = saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c }));
-        if (saved.theme) appConfig.theme = saved.theme;
-        if (saved.fitWindow !== undefined) appConfig.fitWindow = saved.fitWindow;
-        return;
-      }
-    } catch (e) {
-      console.error('Failed to load config via IPC:', e);
-    }
+    try { normalizeConfig(window.electronAPI.loadConfig()); return; }
+    catch (e) { console.error('Failed to load config via IPC:', e); }
   }
   try {
+    const saved = {};
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) appConfig.columns = JSON.parse(raw).map(c => ({ width: DEFAULT_WIDTH, ...c }));
+    if (raw) saved.columns = JSON.parse(raw);
     const rawTheme = localStorage.getItem(THEME_KEY);
-    if (rawTheme) appConfig.theme = rawTheme;
+    if (rawTheme) saved.theme = rawTheme;
     const rawFit = localStorage.getItem('xdeck.fit.v1');
-    if (rawFit !== null) appConfig.fitWindow = rawFit === 'true';
+    if (rawFit !== null) saved.fitWindow = rawFit === 'true';
+    normalizeConfig(saved);
   } catch (_) {}
 }
 
 loadConfig();
-let columns = appConfig.columns;
+
+function partitionFor(id) { return (!id || id === 'default') ? 'persist:x' : 'persist:x-' + id; }
+function getAccount() { return appConfig.accounts.find(a => a.id === activeAccountId) || appConfig.accounts[0]; }
+
+// Make sure this window's account exists (e.g. first run, or a freshly created one).
+if (!appConfig.accounts.find(a => a.id === activeAccountId)) {
+  appConfig.accounts.push({ id: activeAccountId, name: activeAccountId === 'default' ? '账号 1' : activeAccountId, columns: defaultCols() });
+}
+let columns = getAccount().columns;
+
+if (isElectron && window.electronAPI.setActivePartition) {
+  window.electronAPI.setActivePartition(partitionFor(activeAccountId));
+}
 
 function saveColumns() {
-  if (isElectron) {
+  getAccount().columns = columns; // columns is a live ref to the active account's array
+  if (isElectron && window.electronAPI.saveAccount) {
     try {
-      window.electronAPI.saveConfig({
-        columns: columns,
+      window.electronAPI.saveAccount({
+        account: getAccount(),
         theme: appConfig.theme,
-        fitWindow: appConfig.fitWindow
+        fitWindow: appConfig.fitWindow,
+        lastActiveAccount: activeAccountId,
       });
-    } catch (e) {
-      console.error('Failed to save config via IPC:', e);
-    }
+    } catch (e) { console.error('Failed to save account via IPC:', e); }
   }
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(columns));
     localStorage.setItem(THEME_KEY, appConfig.theme);
     localStorage.setItem('xdeck.fit.v1', appConfig.fitWindow ? 'true' : 'false');
   } catch (_) {}
+}
+
+// ---- Accounts ----
+function switchAccount(id) {
+  if (id === activeAccountId) return;
+  activeAccountId = id;
+  columns = getAccount().columns;
+  if (isElectron && window.electronAPI.setActivePartition) window.electronAPI.setActivePartition(partitionFor(id));
+  saveColumns();
+  render();
+  buildAccountMenu();
+}
+function addAccountAndOpen() {
+  const name = (prompt('新账号名称（会在新窗口打开，空白会话需登录一次）：', '账号 ' + (appConfig.accounts.length + 1)) || '').trim();
+  if (!name) return;
+  const id = 'a' + Date.now();
+  const acc = { id, name, columns: defaultCols() };
+  appConfig.accounts.push(acc);
+  if (isElectron && window.electronAPI.saveAccount) {
+    window.electronAPI.saveAccount({ account: acc, theme: appConfig.theme, fitWindow: appConfig.fitWindow });
+  }
+  if (isElectron && window.electronAPI.openAccountWindow) window.electronAPI.openAccountWindow(id);
+  else switchAccount(id);
+  buildAccountMenu();
+}
+function openCurrentInNewWindow() {
+  if (isElectron && window.electronAPI.openAccountWindow) window.electronAPI.openAccountWindow(activeAccountId);
+}
+function renameAccount() {
+  const acc = getAccount();
+  const name = (prompt('重命名当前账号：', acc.name) || '').trim();
+  if (!name) return;
+  acc.name = name; saveColumns(); buildAccountMenu();
+}
+function deleteAccount() {
+  if (appConfig.accounts.length <= 1) { alert('至少保留一个账号'); return; }
+  const acc = getAccount();
+  if (!confirm(`删除账号「${acc.name}」？（该账号的列布局会清空，登录态仍保留在本地）`)) return;
+  const id = acc.id;
+  appConfig.accounts = appConfig.accounts.filter(a => a.id !== id);
+  if (isElectron && window.electronAPI.deleteAccount) window.electronAPI.deleteAccount(id);
+  activeAccountId = appConfig.accounts[0].id;
+  columns = getAccount().columns;
+  if (isElectron && window.electronAPI.setActivePartition) window.electronAPI.setActivePartition(partitionFor(activeAccountId));
+  saveColumns(); render(); buildAccountMenu();
+}
+
+function buildAccountMenu() {
+  let menu = document.getElementById('acctMenu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'acctMenu';
+    document.body.appendChild(menu);
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && !e.target.closest('#acctBtn')) menu.classList.remove('open');
+    });
+  }
+  menu.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'acct-head'; head.textContent = '账号 / 多窗口';
+  menu.appendChild(head);
+  appConfig.accounts.forEach(a => {
+    const row = document.createElement('button');
+    row.className = 'acct-row' + (a.id === activeAccountId ? ' active' : '');
+    row.textContent = (a.id === activeAccountId ? '● ' : '○ ') + a.name;
+    row.onclick = () => { menu.classList.remove('open'); switchAccount(a.id); };
+    menu.appendChild(row);
+  });
+  const sep = document.createElement('div'); sep.className = 'acct-sep'; menu.appendChild(sep);
+  const item = (label, cls, fn) => {
+    const b = document.createElement('button');
+    b.className = 'acct-row' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.onclick = () => { menu.classList.remove('open'); fn(); };
+    menu.appendChild(b);
+  };
+  item('➕ 新账号（开新窗口）', '', addAccountAndOpen);
+  item('🪟 当前账号开新窗口', '', openCurrentInNewWindow);
+  item('✏️ 重命名当前账号', '', renameAccount);
+  item('🗑️ 删除当前账号', 'danger', deleteAccount);
+}
+function toggleAccountMenu(btn) {
+  buildAccountMenu();
+  const menu = document.getElementById('acctMenu');
+  const r = btn.getBoundingClientRect();
+  menu.style.top = r.top + 'px';
+  menu.style.left = (r.right + 8) + 'px';
+  menu.classList.toggle('open');
 }
 
 // ---- Theme ----
@@ -124,6 +240,10 @@ function buildRail() {
   logo.className = 'logo';
   logo.textContent = 'X';
   rail.appendChild(logo);
+
+  const acctBtn = railBtn(ICONS.user, '账号 / 多窗口', () => toggleAccountMenu(acctBtn));
+  acctBtn.id = 'acctBtn';
+  rail.appendChild(acctBtn);
 
   rail.appendChild(railBtn(ICONS.plus, '添加列', openDialog, true));
   rail.appendChild(railBtn(ICONS.list, '添加 X 列表', openListDialog));
@@ -230,7 +350,7 @@ function buildColumn(col) {
 
   const wv = document.createElement('webview');
   wv.dataset.url = col.url; // src is set later, staggered, in render()
-  wv.setAttribute('partition', 'persist:x'); // shared login across all columns
+  wv.setAttribute('partition', partitionFor(activeAccountId)); // this window's account session
   wv.setAttribute('allowpopups', 'true');
   wv.addEventListener('dom-ready', () => {
     wv.insertCSS(columnCSS(navHiddenFor(col)));

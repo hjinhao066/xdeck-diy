@@ -75,7 +75,18 @@ const CHROME_UA =
 
 const isMac = process.platform === 'darwin';
 
-function createWindow() {
+// Each account = its own persistent session partition (independent login/cookies).
+// 'default' keeps the original partition so existing logins are preserved.
+function partitionFor(accountId) {
+  return (!accountId || accountId === 'default') ? 'persist:x' : 'persist:x-' + accountId;
+}
+
+// One deck window, bound to a single account. Open several for several accounts —
+// they run independent sessions and don't interfere.
+function createWindow(accountId = 'default') {
+  const partition = partitionFor(accountId);
+  session.fromPartition(partition).setUserAgent(CHROME_UA);
+
   const win = new BrowserWindow({
     width: 1600,
     height: 950,
@@ -94,15 +105,16 @@ function createWindow() {
     },
   });
 
-  win.loadFile('index.html');
+  win.__partition = partition; // updated when the window switches account
+  win.loadFile('index.html', { query: { account: accountId } });
 
-  // Compose / external popups open as a small logged-in window (shared session)
+  // Compose / external popups open as a small window sharing THIS window's account.
   win.webContents.setWindowOpenHandler(() => ({
     action: 'allow',
     overrideBrowserWindowOptions: {
       width: 620,
       height: 700,
-      webPreferences: { partition: 'persist:x' },
+      webPreferences: { partition: win.__partition },
     },
   }));
   // win.webContents.openDevTools({ mode: 'detach' });
@@ -110,34 +122,54 @@ function createWindow() {
 
 app.whenReady().then(() => {
   const configPath = path.join(app.getPath('userData'), 'config.json');
-
-  ipcMain.on('load-config-sync', (event) => {
+  const readConfig = () => {
     try {
-      if (fs.existsSync(configPath)) {
-        const data = fs.readFileSync(configPath, 'utf-8');
-        event.returnValue = JSON.parse(data);
-        return;
-      }
-    } catch (err) {
-      console.error('Error loading config:', err);
+      if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    } catch (err) { console.error('Error loading config:', err); }
+    return null;
+  };
+  const writeConfig = (cfg) => {
+    try { fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8'); }
+    catch (err) { console.error('Error saving config:', err); }
+  };
+
+  ipcMain.on('load-config-sync', (event) => { event.returnValue = readConfig(); });
+
+  // Merge-save: a window only writes ITS account's slice (+ global theme/fit),
+  // so multiple windows editing different accounts never clobber each other.
+  ipcMain.on('save-account-async', (_e, payload) => {
+    const cfg = readConfig() || { accounts: [], theme: 'dark', fitWindow: false };
+    if (!Array.isArray(cfg.accounts)) cfg.accounts = [];
+    if (payload && payload.account) {
+      const i = cfg.accounts.findIndex(a => a.id === payload.account.id);
+      if (i >= 0) cfg.accounts[i] = payload.account; else cfg.accounts.push(payload.account);
     }
-    event.returnValue = null;
+    if (payload && payload.theme !== undefined) cfg.theme = payload.theme;
+    if (payload && payload.fitWindow !== undefined) cfg.fitWindow = payload.fitWindow;
+    if (payload && payload.lastActiveAccount) cfg.lastActiveAccount = payload.lastActiveAccount;
+    writeConfig(cfg);
   });
 
-  ipcMain.on('save-config-async', (event, config) => {
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('Error saving config:', err);
-    }
+  ipcMain.on('delete-account-async', (_e, id) => {
+    const cfg = readConfig();
+    if (!cfg || !Array.isArray(cfg.accounts)) return;
+    cfg.accounts = cfg.accounts.filter(a => a.id !== id);
+    writeConfig(cfg);
   });
 
-  const xSession = session.fromPartition('persist:x');
-  xSession.setUserAgent(CHROME_UA);
+  // A window tells us which account (partition) it's now showing, so its popups
+  // (compose, external links) open in the right session.
+  ipcMain.on('set-active-partition', (e, p) => {
+    const w = BrowserWindow.fromWebContents(e.sender);
+    if (w && p) w.__partition = p;
+  });
+  ipcMain.on('open-account-window', (_e, accountId) => createWindow(accountId || 'default'));
 
-  // Per-column webview behaviors: right-click menu + swipe navigation.
+  // Per-column webview behaviors: desktop UA (for every account session),
+  // right-click menu + swipe navigation.
   app.on('web-contents-created', (_e, contents) => {
     if (contents.getType() !== 'webview') return;
+    try { contents.session.setUserAgent(CHROME_UA); } catch (_) {}
     contents.on('context-menu', (_ev, params) => popupContextMenu(contents, params));
     contents.on('swipe', (_ev, dir) => {            // 3-finger trackpad swipe
       if (dir === 'right') goBack(contents);
@@ -146,7 +178,8 @@ app.whenReady().then(() => {
     contents.on('dom-ready', () => contents.executeJavaScript(SWIPE_JS).catch(() => {}));
   });
 
-  createWindow();
+  const startCfg = readConfig();
+  createWindow(startCfg && startCfg.lastActiveAccount ? startCfg.lastActiveAccount : 'default');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

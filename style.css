@@ -194,6 +194,44 @@ body.is-mac #rail { padding-top: 44px; } /* clear the traffic lights */
 body.resizing { cursor: col-resize; user-select: none; }
 body.resizing webview { pointer-events: none; }
 
+/* ===== Account / multi-window menu ===== */
+#acctMenu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 190px;
+  padding: 6px;
+  background: var(--card-head);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45);
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+}
+#acctMenu.open { display: flex; }
+#acctMenu .acct-head {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+  letter-spacing: 0.02em;
+}
+.acct-row {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.acct-row:hover { background: var(--pill-bg-hover); }
+.acct-row.active { color: var(--accent); font-weight: 600; }
+.acct-row.danger:hover { background: rgba(244, 33, 46, 0.15); color: #f4212e; }
+.acct-sep { height: 1px; background: var(--hairline); margin: 5px 4px; }
+
 /* ===== Dialogs ===== */
 dialog {
   background: var(--card-head);
