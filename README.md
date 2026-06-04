@@ -35,12 +35,15 @@ Since X Pro (formerly TweetDeck) is now paywalled under X Premium+ ($40/month) a
 - **Local Persistence**: Layouts, column widths, orders, and dark/light modes are saved locally in a JSON file, ensuring settings are never lost.
 
 ### 🛠️ Key Features
+- 👥 **Multi-Account & Multi-Window**: Add multiple X accounts, each with a fully independent login session. Switch accounts inside a window, or open several windows (one account each) side by side — completely isolated, each remembering its own deck layout.
 - 🧩 **Custom Column Configuration**: Add any `x.com` link (Lists, Bookmarks, Search Queries, Profiles, notifications) as a new column.
 - ↔️ **Draggable Resizing**: Drag the edge of any column to customize width (240px - 900px), with automatic width memory.
 - ↔️ **Quick Reordering**: Shift columns left or right with simple arrow controls without reloading their active states.
 - 🧭 **Built-in Navigation Control**:
   - **Header Back/Forward Buttons**: Seamlessly go back or forward in history on individual columns (ideal for Grok pages, search sub-links, and profile drill-downs).
   - **Mouse Side Button Support**: Full compatibility with mouse side back/forward buttons (X1/X2) on hovered columns.
+  - **Two-finger Swipe**: Swipe left/right inside a column to go back/forward.
+- 🖼️ **Right-click Image Menu**: Copy or save images, copy image / link address.
 - 🌙 **Theme Memory**: Easily switch between X "lights out" dark mode and clean Apple light gray style, remembering your choice.
 - 📦 **Cross-Platform**: Compiled installers and standalone binaries for both Windows and macOS.
 
@@ -89,12 +92,15 @@ XDeck DIY 是一款基于 Electron 开发的跨平台（Windows & macOS）桌面
 - **本地化数据持久性**：所有卡片列的排序、独立宽度、主题和排列，都会即时安全地保存到本地 JSON 配置文件中，重开软件绝不丢失配置。
 
 ### 🛠️ 功能特性
+- 👥 **多账号 / 多窗口**：可添加多个 X 账号，每个账号拥有**完全独立的登录会话**（cookie 互不干扰）。可在同一窗口内切换账号，也可为每个账号各开一个窗口并排使用——彼此隔离、各自记住自己的列布局。
 - 🧩 **自由扩展列**：支持添加任意 `x.com` 链接（列表 List、书签 Bookmarks、特定账号、实时搜索、通知等）。
 - ↔️ **列宽自由拖拽**：鼠标拖拽列边缘即可随意调节列宽（240px - 900px），支持自动记忆。
 - ↔️ **快速排序**：支持卡片列无刷新地左右平移调整顺序，保持当前页面的浏览状态不中断。
 - 🧭 **内置导航控制**：
   - **列顶栏历史导航**：在每列头部集成了“后退”与“前进”按钮，支持状态自动禁用，能完美解决 Grok 页面或子帖子中无法返回的问题。
   - **鼠标侧键兼容**：深度适配鼠标侧键，悬停在任意列上点击侧键即可直接控制该列内容的前进与后退。
+  - **两指滑动**：在列内两指左右滑动即可后退 / 前进。
+- 🖼️ **图片右键菜单**：复制 / 保存图片、复制图片或链接地址。
 - 🌙 **主题记忆**：一键切换 X 原生深色模式与苹果极简浅灰模式，并在本地记住您的喜好。
 - 📦 **跨平台支持**：提供 Windows 及 macOS 的一键安装包和免安装绿色版程序。
 
