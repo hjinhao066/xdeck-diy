@@ -217,15 +217,15 @@ function buildColumn(col) {
   secondary.className = 'secondary';
 
   const backBtn = mkBtn(ICONS.back, '后退', () => {
-    if (wv.canGoBack()) wv.goBack();
+    if (typeof wv.canGoBack === 'function' && wv.canGoBack()) wv.goBack();
   });
   const fwdBtn = mkBtn(ICONS.forward, '前进', () => {
-    if (wv.canGoForward()) wv.goForward();
+    if (typeof wv.canGoForward === 'function' && wv.canGoForward()) wv.goForward();
   });
 
   const updateNavButtons = () => {
-    backBtn.disabled = !wv.canGoBack();
-    fwdBtn.disabled = !wv.canGoForward();
+    backBtn.disabled = (typeof wv.canGoBack === 'function') ? !wv.canGoBack() : true;
+    fwdBtn.disabled = (typeof wv.canGoForward === 'function') ? !wv.canGoForward() : true;
   };
 
   wv.addEventListener('did-navigate', updateNavButtons);
@@ -373,13 +373,13 @@ render();
 window.addEventListener('mousedown', (e) => {
   if (e.button === 3) {
     const hoveredWebview = document.querySelector('webview:hover');
-    if (hoveredWebview && hoveredWebview.canGoBack()) {
+    if (hoveredWebview && typeof hoveredWebview.canGoBack === 'function' && hoveredWebview.canGoBack()) {
       e.preventDefault();
       hoveredWebview.goBack();
     }
   } else if (e.button === 4) {
     const hoveredWebview = document.querySelector('webview:hover');
-    if (hoveredWebview && hoveredWebview.canGoForward()) {
+    if (hoveredWebview && typeof hoveredWebview.canGoForward === 'function' && hoveredWebview.canGoForward()) {
       e.preventDefault();
       hoveredWebview.goForward();
     }
