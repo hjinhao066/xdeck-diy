@@ -18,6 +18,7 @@ const ICONS = {
   sun:     S('<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>'),
   moon:    S('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
   reset:   S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
+  fit:     S('<polyline points="4 7 4 4 7 4"/><polyline points="20 7 20 4 17 4"/><polyline points="4 17 4 20 7 20"/><polyline points="20 17 20 20 17 20"/>'),
 };
 
 // CSS injected into every X column: hide X's right "who to follow" sidebar,
@@ -50,6 +51,7 @@ const DEFAULT_COLUMNS = [
 
 let appConfig = {
   theme: 'dark',
+  fitWindow: false,
   columns: DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }))
 };
 
@@ -62,6 +64,7 @@ function loadConfig() {
       if (saved) {
         if (saved.columns) appConfig.columns = saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c }));
         if (saved.theme) appConfig.theme = saved.theme;
+        if (saved.fitWindow !== undefined) appConfig.fitWindow = saved.fitWindow;
         return;
       }
     } catch (e) {
@@ -73,6 +76,8 @@ function loadConfig() {
     if (raw) appConfig.columns = JSON.parse(raw).map(c => ({ width: DEFAULT_WIDTH, ...c }));
     const rawTheme = localStorage.getItem(THEME_KEY);
     if (rawTheme) appConfig.theme = rawTheme;
+    const rawFit = localStorage.getItem('xdeck.fit.v1');
+    if (rawFit !== null) appConfig.fitWindow = rawFit === 'true';
   } catch (_) {}
 }
 
@@ -84,7 +89,8 @@ function saveColumns() {
     try {
       window.electronAPI.saveConfig({
         columns: columns,
-        theme: appConfig.theme
+        theme: appConfig.theme,
+        fitWindow: appConfig.fitWindow
       });
     } catch (e) {
       console.error('Failed to save config via IPC:', e);
@@ -93,6 +99,7 @@ function saveColumns() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(columns));
     localStorage.setItem(THEME_KEY, appConfig.theme);
+    localStorage.setItem('xdeck.fit.v1', appConfig.fitWindow ? 'true' : 'false');
   } catch (_) {}
 }
 
@@ -124,6 +131,16 @@ function buildRail() {
     window.open('https://x.com/compose/post', '_blank')));
   rail.appendChild(railBtn(ICONS.reload, '全部刷新', () =>
     document.querySelectorAll('webview').forEach(wv => wv.reload())));
+
+  const fitBtn = railBtn(ICONS.fit, '等比例适应窗口 / 滚动布局', () => {
+    appConfig.fitWindow = !appConfig.fitWindow;
+    fitBtn.classList.toggle('accent', appConfig.fitWindow);
+    saveColumns();
+    updateColumnStyles();
+  });
+  fitBtn.id = 'fitBtn';
+  if (appConfig.fitWindow) fitBtn.classList.add('accent');
+  rail.appendChild(fitBtn);
 
   const spacer = document.createElement('div');
   spacer.className = 'rail-spacer';
@@ -161,6 +178,7 @@ const deck = document.getElementById('deck');
 
 function render() {
   deck.innerHTML = '';
+  deck.style.overflowX = appConfig.fitWindow ? 'hidden' : 'auto';
   columns.forEach((col) => deck.appendChild(buildColumn(col)));
   // Stagger the initial loads. Firing every column at x.com simultaneously
   // on the same session makes X's anti-bot throttle the boot, leaving every
@@ -170,10 +188,35 @@ function render() {
   });
 }
 
+function updateColumnStyles() {
+  const isFit = appConfig.fitWindow;
+  deck.style.overflowX = isFit ? 'hidden' : 'auto';
+  
+  const cols = deck.querySelectorAll('.column');
+  cols.forEach((wrap, i) => {
+    const col = columns[i];
+    if (!col) return;
+    if (isFit) {
+      wrap.style.flex = `${col.width} ${col.width} 0%`;
+      wrap.style.width = '';
+    } else {
+      wrap.style.flex = '0 0 auto';
+      wrap.style.width = `${col.width}px`;
+    }
+  });
+}
+
 function buildColumn(col) {
   const wrap = document.createElement('div');
   wrap.className = 'column';
-  wrap.style.width = (col.width || DEFAULT_WIDTH) + 'px';
+  
+  const isFit = appConfig.fitWindow;
+  if (isFit) {
+    wrap.style.flex = `${col.width} ${col.width} 0%`;
+  } else {
+    wrap.style.flex = '0 0 auto';
+    wrap.style.width = (col.width || DEFAULT_WIDTH) + 'px';
+  }
 
   const head = document.createElement('div');
   head.className = 'col-head';
@@ -189,7 +232,17 @@ function buildColumn(col) {
   wv.dataset.url = col.url; // src is set later, staggered, in render()
   wv.setAttribute('partition', 'persist:x'); // shared login across all columns
   wv.setAttribute('allowpopups', 'true');
-  wv.addEventListener('dom-ready', () => wv.insertCSS(columnCSS(navHiddenFor(col))));
+  wv.addEventListener('dom-ready', () => {
+    wv.insertCSS(columnCSS(navHiddenFor(col)));
+    try {
+      if (window.electronAPI && typeof window.electronAPI.getZoomFactor === 'function') {
+        const currentZoom = window.electronAPI.getZoomFactor();
+        wv.setZoomFactor(currentZoom);
+      }
+    } catch (err) {
+      console.error('Error applying zoom to webview:', err);
+    }
+  });
 
   // Keep the column following the FEED it's on (home / list / search /
   // bookmarks / profile), persisting that so it restores next launch. We
@@ -277,6 +330,18 @@ function attachResize(handle, wrap, col) {
     const startX = e.clientX;
     const startW = wrap.getBoundingClientRect().width;
     document.body.classList.add('resizing');
+    
+    const isFit = appConfig.fitWindow;
+    const cols = Array.from(deck.querySelectorAll('.column'));
+    let initialWidths = [];
+    if (isFit) {
+      initialWidths = cols.map(c => c.getBoundingClientRect().width);
+      cols.forEach((c, idx) => {
+        c.style.flex = 'none';
+        c.style.width = initialWidths[idx] + 'px';
+      });
+    }
+
     const onMove = (ev) => {
       let w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW + (ev.clientX - startX)));
       wrap.style.width = w + 'px';
@@ -285,8 +350,18 @@ function attachResize(handle, wrap, col) {
       document.body.classList.remove('resizing');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      col.width = Math.round(wrap.getBoundingClientRect().width);
-      saveColumns();
+      
+      if (isFit) {
+        col.width = Math.round(wrap.getBoundingClientRect().width);
+        cols.forEach((c, idx) => {
+          columns[idx].width = Math.round(c.getBoundingClientRect().width);
+        });
+        saveColumns();
+        updateColumnStyles();
+      } else {
+        col.width = Math.round(wrap.getBoundingClientRect().width);
+        saveColumns();
+      }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
@@ -383,5 +458,35 @@ window.addEventListener('mousedown', (e) => {
       e.preventDefault();
       hoveredWebview.goForward();
     }
+  }
+});
+
+// Sync zoom level (Ctrl+Plus, Ctrl+Minus, Ctrl+Zero) to webviews
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
+    e.preventDefault();
+    if (!window.electronAPI || typeof window.electronAPI.getZoomFactor !== 'function') return;
+    
+    let currentZoom = window.electronAPI.getZoomFactor();
+    if (e.key === '=' || e.key === '+') {
+      currentZoom = Math.min(3.0, Math.round((currentZoom + 0.1) * 10) / 10);
+    } else if (e.key === '-') {
+      currentZoom = Math.max(0.5, Math.round((currentZoom - 0.1) * 10) / 10);
+    } else if (e.key === '0') {
+      currentZoom = 1.0;
+    }
+    
+    window.electronAPI.setZoomFactor(currentZoom);
+    
+    // Propagate zoom to all active webviews
+    document.querySelectorAll('webview').forEach(wv => {
+      try {
+        if (typeof wv.setZoomFactor === 'function') {
+          wv.setZoomFactor(currentZoom);
+        }
+      } catch (err) {
+        console.error('Error scaling webview zoom:', err);
+      }
+    });
   }
 });
