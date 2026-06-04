@@ -16,8 +16,8 @@
   --accent-soft: rgba(29, 155, 240, 0.12);
   --pill-bg: rgba(0, 0, 0, 0.05);
   --pill-bg-hover: rgba(0, 0, 0, 0.09);
-  --scrollbar-thumb: rgba(255, 159, 10, 0.6);
-  --scrollbar-thumb-hover: rgba(255, 159, 10, 0.95);
+  --scrollbar-thumb: rgba(217, 119, 46, 0.45);
+  --scrollbar-thumb-hover: rgba(217, 119, 46, 0.7);
 }
 
 /* ===== Dark (default) — matches X "lights out" ===== */
@@ -37,8 +37,8 @@
   --accent-soft: rgba(29, 155, 240, 0.22);
   --pill-bg: rgba(255, 255, 255, 0.10);
   --pill-bg-hover: rgba(255, 255, 255, 0.16);
-  --scrollbar-thumb: rgba(255, 159, 10, 0.6);
-  --scrollbar-thumb-hover: rgba(255, 159, 10, 0.95);
+  --scrollbar-thumb: rgba(217, 119, 46, 0.45);
+  --scrollbar-thumb-hover: rgba(217, 119, 46, 0.7);
 }
 
 html, body {

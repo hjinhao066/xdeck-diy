@@ -7,6 +7,20 @@
   </p>
 </div>
 
+<div align="center">
+
+### 📥 [下载最新版 · Download Latest Release](https://github.com/hjinhao066/xdeck-diy/releases/latest)
+
+ **macOS** (Apple Silicon · `.dmg`)　·　🪟 **Windows** (`.exe`)
+
+🤖 **AI 助手一键安装 · One-click install via an AI agent**
+把这句发给 Claude Code / Cursor — *paste this to your coding agent:*
+> Clone `https://github.com/hjinhao066/xdeck-diy`, run `npm install`, then `npm start`.
+
+<sub> macOS 首次打开:应用未做付费签名,**右键 →「打开」**一次即可 · *On first launch, right-click the app → **Open**.*</sub>
+
+</div>
+
 ---
 
 <a name="english"></a>
