@@ -46,15 +46,53 @@ const DEFAULT_COLUMNS = [
   { title: '书签', url: 'https://x.com/i/bookmarks' },
 ];
 
-function loadColumns() {
+let appConfig = {
+  theme: 'dark',
+  columns: DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }))
+};
+
+const isElectron = typeof window !== 'undefined' && window.electronAPI;
+
+function loadConfig() {
+  if (isElectron) {
+    try {
+      const saved = window.electronAPI.loadConfig();
+      if (saved) {
+        if (saved.columns) appConfig.columns = saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c }));
+        if (saved.theme) appConfig.theme = saved.theme;
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to load config via IPC:', e);
+    }
+  }
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw).map(c => ({ width: DEFAULT_WIDTH, ...c }));
+    if (raw) appConfig.columns = JSON.parse(raw).map(c => ({ width: DEFAULT_WIDTH, ...c }));
+    const rawTheme = localStorage.getItem(THEME_KEY);
+    if (rawTheme) appConfig.theme = rawTheme;
   } catch (_) {}
-  return DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }));
 }
-function saveColumns() { localStorage.setItem(STORE_KEY, JSON.stringify(columns)); }
-let columns = loadColumns();
+
+loadConfig();
+let columns = appConfig.columns;
+
+function saveColumns() {
+  if (isElectron) {
+    try {
+      window.electronAPI.saveConfig({
+        columns: columns,
+        theme: appConfig.theme
+      });
+    } catch (e) {
+      console.error('Failed to save config via IPC:', e);
+    }
+  }
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(columns));
+    localStorage.setItem(THEME_KEY, appConfig.theme);
+  } catch (_) {}
+}
 
 // ---- Theme ----
 function applyTheme(theme) {
@@ -64,7 +102,8 @@ function applyTheme(theme) {
     btn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
     btn.title = theme === 'dark' ? '切换浅色' : '切换深色';
   }
-  localStorage.setItem(THEME_KEY, theme);
+  appConfig.theme = theme;
+  saveColumns();
 }
 
 // ---- Left rail ----
@@ -103,7 +142,7 @@ function buildRail() {
     }
   }));
 
-  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+  applyTheme(appConfig.theme);
 }
 
 function railBtn(svg, tip, onClick, accent) {

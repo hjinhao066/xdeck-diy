@@ -16,6 +16,8 @@
   --accent-soft: rgba(29, 155, 240, 0.12);
   --pill-bg: rgba(0, 0, 0, 0.05);
   --pill-bg-hover: rgba(0, 0, 0, 0.09);
+  --scrollbar-thumb: rgba(255, 159, 10, 0.6);
+  --scrollbar-thumb-hover: rgba(255, 159, 10, 0.95);
 }
 
 /* ===== Dark (default) — matches X "lights out" ===== */
@@ -35,6 +37,8 @@
   --accent-soft: rgba(29, 155, 240, 0.22);
   --pill-bg: rgba(255, 255, 255, 0.10);
   --pill-bg-hover: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb: rgba(255, 159, 10, 0.6);
+  --scrollbar-thumb-hover: rgba(255, 159, 10, 0.95);
 }
 
 html, body {
@@ -98,8 +102,17 @@ body.is-mac #rail { padding-top: 44px; } /* clear the traffic lights */
   overflow-y: hidden;
   background: var(--app-bg);
 }
-#deck::-webkit-scrollbar { height: 8px; }
-#deck::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+#deck::-webkit-scrollbar { height: 14px; }
+#deck::-webkit-scrollbar-track { background: transparent; }
+#deck::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+#deck::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
 
 .column {
   position: relative;

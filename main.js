@@ -1,5 +1,6 @@
-const { app, BrowserWindow, session, Menu, clipboard, shell } = require('electron');
+const { app, BrowserWindow, session, Menu, clipboard, shell, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // History helpers. Electron 30 still has webContents.canGoBack()/goBack();
 // newer versions move them to webContents.navigationHistory. Feature-detect
@@ -97,6 +98,29 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  const configPath = path.join(app.getPath('userData'), 'config.json');
+
+  ipcMain.on('load-config-sync', (event) => {
+    try {
+      if (fs.existsSync(configPath)) {
+        const data = fs.readFileSync(configPath, 'utf-8');
+        event.returnValue = JSON.parse(data);
+        return;
+      }
+    } catch (err) {
+      console.error('Error loading config:', err);
+    }
+    event.returnValue = null;
+  });
+
+  ipcMain.on('save-config-async', (event, config) => {
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving config:', err);
+    }
+  });
+
   const xSession = session.fromPartition('persist:x');
   xSession.setUserAgent(CHROME_UA);
 
