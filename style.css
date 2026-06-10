@@ -232,6 +232,49 @@ body.resizing webview { pointer-events: none; }
 .acct-row.danger:hover { background: rgba(244, 33, 46, 0.15); color: #f4212e; }
 .acct-sep { height: 1px; background: var(--hairline); margin: 5px 4px; }
 
+/* ===== Fullscreen image lightbox ===== */
+#lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.93);
+  overflow: auto;
+  outline: none;
+}
+#lightbox.open { display: flex; }
+#lightbox img {
+  margin: auto; /* keeps it centered, and scrollable from the edge when zoomed */
+  max-width: 96vw;
+  max-height: 96vh;
+  object-fit: contain;
+  border-radius: 4px;
+  cursor: zoom-in;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+#lightbox.zoomed img {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+  border-radius: 0;
+}
+#lightbox .lb-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+#lightbox .lb-close:hover { background: rgba(255, 255, 255, 0.22); }
+#lightbox .lb-close svg { width: 20px; height: 20px; }
+
 /* ===== Dialogs ===== */
 dialog {
   background: var(--card-head);

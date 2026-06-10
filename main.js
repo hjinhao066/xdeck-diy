@@ -45,6 +45,10 @@ function popupContextMenu(contents, params) {
   const tpl = [];
   if (params.mediaType === 'image') {
     tpl.push(
+      { label: '全屏查看图片', click: () => {
+          // The deck page (webview host) renders the window-wide lightbox.
+          if (contents.hostWebContents) contents.hostWebContents.send('open-image', params.srcURL);
+        } },
       { label: '复制图片', click: () => contents.copyImageAt(params.x, params.y) },
       { label: '复制图片地址', click: () => clipboard.writeText(params.srcURL) },
       { label: '保存图片…', click: () => contents.downloadURL(params.srcURL) },

@@ -381,6 +381,11 @@ function buildColumn(col) {
   wv.dataset.url = col.url; // src is set later, staggered, in render()
   wv.setAttribute('partition', partitionFor(activeAccountId)); // this window's account session
   wv.setAttribute('allowpopups', 'true');
+  // Intercept tweet-photo clicks inside the page → window-wide lightbox.
+  wv.setAttribute('preload', new URL('webview-preload.js', location.href).toString());
+  wv.addEventListener('ipc-message', (e) => {
+    if (e.channel === 'open-image' && e.args[0]) openLightbox(e.args[0]);
+  });
   wv.addEventListener('dom-ready', () => {
     wv.insertCSS(columnCSS(navHiddenFor(col)));
     try {
@@ -402,13 +407,14 @@ function buildColumn(col) {
   const syncState = () => {
     const url = wv.getURL();
     if (!url || !/^https?:/.test(url) || TRANSIENT.test(url)) return;
-    if (url !== col.url) col.url = url;
+    let changed = false;
+    if (url !== col.url) { col.url = url; changed = true; }
     const t = (wv.getTitle() || '')
       .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
       .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"
       .trim();
-    if (t) { col.title = t; title.textContent = t; }
-    saveColumns();
+    if (t && t !== col.title) { col.title = t; title.textContent = t; changed = true; }
+    if (changed) saveColumns(); // title updates fire constantly; only persist real changes
   };
   wv.addEventListener('did-navigate', syncState);
   wv.addEventListener('did-navigate-in-page', syncState);
@@ -536,6 +542,51 @@ function move(col, dir) {
 }
 function removeCol(col) { columns.splice(columns.indexOf(col), 1); saveColumns(); render(); }
 function addColumn(col) { columns.push({ width: DEFAULT_WIDTH, ...col }); saveColumns(); render(); }
+
+// ---- Fullscreen image lightbox (escapes the column width) ----
+// Tweet photos arrive as name=small/medium thumbnails; ask for the original.
+function hiResImageURL(src) {
+  try {
+    const u = new URL(src);
+    if (u.hostname === 'pbs.twimg.com') u.searchParams.set('name', 'orig');
+    return u.toString();
+  } catch (_) { return src; }
+}
+
+let lightboxEl = null;
+function ensureLightbox() {
+  if (lightboxEl) return lightboxEl;
+  lightboxEl = document.createElement('div');
+  lightboxEl.id = 'lightbox';
+  lightboxEl.tabIndex = -1; // focusable, so Esc works even after clicking in a webview
+  lightboxEl.innerHTML = '<img alt="" /><button class="lb-close" title="关闭 (Esc)">' + ICONS.close + '</button>';
+  document.body.appendChild(lightboxEl);
+  const img = lightboxEl.querySelector('img');
+  lightboxEl.addEventListener('click', (e) => {
+    if (e.target === img) lightboxEl.classList.toggle('zoomed'); // 点图片放大到原始尺寸
+    else closeLightbox();
+  });
+  lightboxEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+  });
+  return lightboxEl;
+}
+function openLightbox(src) {
+  const lb = ensureLightbox();
+  lb.querySelector('img').src = hiResImageURL(src);
+  lb.classList.add('open');
+  lb.classList.remove('zoomed');
+  lb.focus();
+}
+function closeLightbox() {
+  if (!lightboxEl) return;
+  lightboxEl.classList.remove('open', 'zoomed');
+  lightboxEl.querySelector('img').removeAttribute('src');
+}
+// Right-click "全屏查看图片" in any column lands here via the main process.
+if (isElectron && window.electronAPI.onOpenImage) {
+  window.electronAPI.onOpenImage(openLightbox);
+}
 
 // ---- Add / edit dialog ----
 const dlg = document.getElementById('colDialog');

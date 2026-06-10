@@ -1,6 +1,6 @@
 {
   "name": "xdeck-diy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "DIY multi-column X (Twitter) deck - TweetDeck/X Pro alternative for Win & Mac",
   "main": "main.js",
   "scripts": {
@@ -18,7 +18,14 @@
   "build": {
     "appId": "com.jinhao.xdeckdiy",
     "productName": "XDeck DIY",
-    "files": ["main.js", "preload.js", "index.html", "renderer.js", "style.css"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "webview-preload.js",
+      "index.html",
+      "renderer.js",
+      "style.css"
+    ],
     "mac": {
       "target": "dmg",
       "category": "public.app-category.social-networking",
