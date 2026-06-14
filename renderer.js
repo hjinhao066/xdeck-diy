@@ -42,6 +42,14 @@ const THEME_KEY = 'xdeck.theme.v1';
 const DEFAULT_WIDTH = 380;
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 900;
+// Left panel (actions toolbar + column list): draggable width + collapse.
+const NAV_DEFAULT_W = 200, NAV_MIN_W = 140, NAV_MAX_W = 380, NAV_COLLAPSED_W = 56;
+// Persisted in localStorage (UI prefs, not part of the account config).
+let navWidth = parseInt(localStorage.getItem('xdeck.navWidth'), 10) || NAV_DEFAULT_W;
+let navCollapsed = localStorage.getItem('xdeck.navCollapsed') === 'true';
+function saveNavPrefs() {
+  try { localStorage.setItem('xdeck.navWidth', String(navWidth)); localStorage.setItem('xdeck.navCollapsed', String(navCollapsed)); } catch (_) {}
+}
 
 const DEFAULT_COLUMNS = [
   { title: '主页', url: 'https://x.com/home' },
@@ -262,24 +270,25 @@ function applyTheme(theme) {
   saveColumns();
 }
 
-// ---- Left rail ----
+// ---- Left panel toolbar (actions) ----
 function buildRail() {
-  const rail = document.getElementById('rail');
-  rail.innerHTML = '';
+  const top = document.getElementById('navTop');
+  const bottom = document.getElementById('navBottom');
+  top.innerHTML = ''; bottom.innerHTML = '';
 
-  const logo = document.createElement('div');
-  logo.className = 'logo';
-  logo.textContent = 'X';
-  rail.appendChild(logo);
+  // Top row = primary actions: collapse, add column, add list, refresh all.
+  const collapseBtn = railBtn(ICONS.left, '折叠侧栏', () => setNavCollapsed(!navCollapsed));
+  collapseBtn.id = 'navCollapseBtn';
+  top.appendChild(collapseBtn);
+  top.appendChild(railBtn(ICONS.plus, '添加列', openDialog, true));
+  top.appendChild(railBtn(ICONS.list, '添加 X 列表', openListDialog));
+  top.appendChild(railBtn(ICONS.reload, '全部刷新', () =>
+    document.querySelectorAll('webview').forEach(wv => wv.reload())));
 
+  // Bottom row = utilities: account, fit, theme, reset.
   const acctBtn = railBtn(ICONS.user, '账号 / 多窗口', () => toggleAccountMenu(acctBtn));
   acctBtn.id = 'acctBtn';
-  rail.appendChild(acctBtn);
-
-  rail.appendChild(railBtn(ICONS.plus, '添加列', openDialog, true));
-  rail.appendChild(railBtn(ICONS.list, '添加 X 列表', openListDialog));
-  rail.appendChild(railBtn(ICONS.reload, '全部刷新', () =>
-    document.querySelectorAll('webview').forEach(wv => wv.reload())));
+  bottom.appendChild(acctBtn);
 
   const fitBtn = railBtn(ICONS.fit, '等比例适应窗口 / 滚动布局', () => {
     appConfig.fitWindow = !appConfig.fitWindow;
@@ -289,20 +298,16 @@ function buildRail() {
   });
   fitBtn.id = 'fitBtn';
   if (appConfig.fitWindow) fitBtn.classList.add('accent');
-  rail.appendChild(fitBtn);
-
-  const spacer = document.createElement('div');
-  spacer.className = 'rail-spacer';
-  rail.appendChild(spacer);
+  bottom.appendChild(fitBtn);
 
   const themeBtn = railBtn(ICONS.moon, '切换主题', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     applyTheme(next);
   });
   themeBtn.id = 'themeBtn';
-  rail.appendChild(themeBtn);
+  bottom.appendChild(themeBtn);
 
-  rail.appendChild(railBtn(ICONS.reset, '恢复默认布局', () => {
+  bottom.appendChild(railBtn(ICONS.reset, '恢复默认布局', () => {
     if (confirm('恢复默认列布局？（自定义的列会清空）')) {
       columns = DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }));
       saveColumns();
@@ -311,6 +316,45 @@ function buildRail() {
   }));
 
   applyTheme(appConfig.theme);
+}
+
+// ---- Left panel width + collapse ----
+const colNavEl = document.getElementById('colNav');
+function applyNavWidth() {
+  const w = navCollapsed ? NAV_COLLAPSED_W : navWidth;
+  colNavEl.style.flex = '0 0 ' + w + 'px';
+  colNavEl.style.width = w + 'px';
+}
+function setNavCollapsed(v) {
+  navCollapsed = v;
+  colNavEl.classList.toggle('collapsed', v);
+  const btn = document.getElementById('navCollapseBtn');
+  if (btn) { btn.innerHTML = v ? ICONS.right : ICONS.left; btn.title = v ? '展开侧栏' : '折叠侧栏'; }
+  applyNavWidth();
+  saveNavPrefs();
+}
+function attachNavResize(handle) {
+  handle.addEventListener('mousedown', (e) => {
+    if (navCollapsed) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = colNavEl.getBoundingClientRect().width;
+    document.body.classList.add('resizing');
+    const onMove = (ev) => {
+      const w = Math.max(NAV_MIN_W, Math.min(NAV_MAX_W, startW + (ev.clientX - startX)));
+      colNavEl.style.flex = '0 0 ' + w + 'px';
+      colNavEl.style.width = w + 'px';
+    };
+    const onUp = () => {
+      document.body.classList.remove('resizing');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      navWidth = Math.round(colNavEl.getBoundingClientRect().width);
+      saveNavPrefs();
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 }
 
 function railBtn(svg, tip, onClick, accent) {
@@ -335,6 +379,7 @@ function render() {
   deck.querySelectorAll('webview').forEach((wv, i) => {
     setTimeout(() => wv.setAttribute('src', wv.dataset.url), i * 600);
   });
+  renderColNav();
 }
 
 function updateColumnStyles() {
@@ -358,7 +403,9 @@ function updateColumnStyles() {
 function buildColumn(col) {
   const wrap = document.createElement('div');
   wrap.className = 'column';
-  
+  wrap.__col = col; // lets the sidebar map a column object back to its DOM node
+  wrap.addEventListener('mousedown', () => setActiveCol(col), true);
+
   const isFit = appConfig.fitWindow;
   if (isFit) {
     wrap.style.flex = `${col.width} ${col.width} 0%`;
@@ -376,6 +423,8 @@ function buildColumn(col) {
   const title = document.createElement('span');
   title.className = 'title';
   title.textContent = col.title || col.url;
+  title.title = '双击重命名';
+  attachHeadRename(title, col); // double-click to rename (synced with the sidebar)
 
   const wv = document.createElement('webview');
   wv.dataset.url = col.url; // src is set later, staggered, in render()
@@ -413,7 +462,13 @@ function buildColumn(col) {
       .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
       .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"
       .trim();
-    if (t && t !== col.title) { col.title = t; title.textContent = t; changed = true; }
+    // Auto-name the column from the page title — unless the user manually
+    // renamed it (col.manualTitle), in which case their name sticks.
+    if (t && t !== col.title && !col.manualTitle) {
+      col.title = t; title.textContent = t;
+      const nav = navItems.get(col); if (nav) nav.label.textContent = t;
+      changed = true;
+    }
     if (changed) saveColumns(); // title updates fire constantly; only persist real changes
   };
   wv.addEventListener('did-navigate', syncState);
@@ -539,9 +594,154 @@ function move(col, dir) {
   const nodes = deck.children;
   if (dir === 1) deck.insertBefore(nodes[j], nodes[idx]);
   else deck.insertBefore(nodes[idx], nodes[j]);
+  renderColNav();
 }
 function removeCol(col) { columns.splice(columns.indexOf(col), 1); saveColumns(); render(); }
 function addColumn(col) { columns.push({ width: DEFAULT_WIDTH, ...col }); saveColumns(); render(); }
+
+// ---- Column sidebar (list: click to jump, double-click rename, drag reorder) ----
+const navListEl = document.getElementById('navList');
+const navItems = new Map(); // col(object) -> { el, dot, label }
+let activeCol = null;
+
+// Map a column object to its live .column wrapper. Tagged in buildColumn so the
+// mapping survives reordering (columns have no stable id).
+function wrapForCol(col) {
+  for (const child of deck.children) if (child.__col === col) return child;
+  return null;
+}
+
+// One source of truth for a column's name so the header and the sidebar never
+// drift. `manual=true` locks it so auto-naming (syncState) won't overwrite it.
+function setColumnTitle(col, title, manual) {
+  col.title = title;
+  if (manual) col.manualTitle = true;
+  const wrap = wrapForCol(col);
+  if (wrap) { const t = wrap.querySelector('.col-head .title'); if (t && t.textContent !== title) t.textContent = title; }
+  const nav = navItems.get(col);
+  if (nav && nav.label.textContent !== title) nav.label.textContent = title;
+  saveColumns();
+}
+
+function renderColNav() {
+  if (!navListEl) return;
+  if (activeCol && !columns.includes(activeCol)) activeCol = null;
+  navItems.clear();
+  navListEl.innerHTML = '';
+  columns.forEach((col, i) => {
+    const item = document.createElement('div');
+    item.className = 'colnav-item';
+    const dot = document.createElement('span'); dot.className = 'cn-dot';
+    const label = document.createElement('span'); label.className = 'cn-label';
+    label.textContent = col.title || col.url; label.title = '双击重命名';
+    const right = document.createElement('span'); right.className = 'cn-right';
+    const idx = document.createElement('span'); idx.className = 'cn-index';
+    idx.textContent = i < 9 ? String(i + 1) : '';
+    const del = document.createElement('button');
+    del.className = 'cn-del'; del.innerHTML = ICONS.close; del.title = '删除该列';
+    del.addEventListener('mousedown', (e) => e.stopPropagation());
+    del.addEventListener('click', (e) => { e.stopPropagation(); removeCol(col); });
+    right.append(idx, del);
+    item.append(dot, label, right);
+    attachNavReorder(item, col);
+    attachNavRename(label, col);
+    navListEl.appendChild(item);
+    navItems.set(col, { el: item, dot, label });
+  });
+  const countEl = document.getElementById('navCount');
+  if (countEl) countEl.textContent = String(columns.length);
+  syncNav();
+}
+
+function syncNav() {
+  navItems.forEach((nav, col) => nav.el.classList.toggle('active', col === activeCol));
+}
+function setActiveCol(col) { activeCol = col; syncNav(); }
+
+function jumpToColumn(col) {
+  const wrap = wrapForCol(col);
+  if (!wrap) return;
+  setActiveCol(col);
+  wrap.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  const wv = wrap.querySelector('webview');
+  if (wv) { try { wv.focus(); } catch (_) {} }
+}
+
+// Shared inline-rename used by both the header title and the sidebar label.
+function startInlineRename(el, col, restoreText) {
+  el.contentEditable = 'true'; el.spellcheck = false; el.focus();
+  const range = document.createRange(); range.selectNodeContents(el);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  let cancelled = false;
+  const onKey = (ev) => {
+    ev.stopPropagation();
+    if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); cancelled = true; el.blur(); }
+  };
+  el.addEventListener('keydown', onKey);
+  el.addEventListener('blur', () => {
+    el.removeEventListener('keydown', onKey);
+    el.contentEditable = 'false';
+    window.getSelection().removeAllRanges();
+    const v = el.textContent.trim();
+    if (!cancelled && v) setColumnTitle(col, v, true); // manual rename → locks auto-naming
+    else el.textContent = restoreText();
+  }, { once: true });
+}
+function attachNavRename(labelEl, col) {
+  labelEl.addEventListener('dblclick', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    startInlineRename(labelEl, col, () => col.title || col.url);
+  });
+}
+function attachHeadRename(titleEl, col) {
+  titleEl.addEventListener('dblclick', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    startInlineRename(titleEl, col, () => col.title || col.url);
+  });
+}
+
+// Drag a sidebar entry to reorder; the deck columns reflow to match live (no
+// reload). Below the move threshold it's a plain click → jump to that column.
+function attachNavReorder(item, col) {
+  item.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const label = item.querySelector('.cn-label');
+    if (label && label.isContentEditable) return;
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    let dragging = false;
+    const onMove = (ev) => {
+      if (!dragging) {
+        if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return;
+        dragging = true; document.body.classList.add('reordering');
+      }
+      const overEl = document.elementFromPoint(ev.clientX, ev.clientY);
+      const overItem = overEl && overEl.closest('.colnav-item');
+      if (!overItem) return;
+      let overCol = null;
+      navItems.forEach((n, c) => { if (n.el === overItem) overCol = c; });
+      if (!overCol || overCol === col) return;
+      const from = columns.indexOf(col), to = columns.indexOf(overCol);
+      if (from < 0 || to < 0 || from === to) return;
+      columns.splice(from, 1); columns.splice(to, 0, col);
+      // Reflow the deck to match the array — appendChild moves live webviews.
+      columns.forEach((c) => { const w = wrapForCol(c); if (w) deck.appendChild(w); });
+      renderColNav();
+      const fresh = navItems.get(col);
+      if (fresh) fresh.el.classList.add('cn-dragging');
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.classList.remove('reordering');
+      if (dragging) { const fresh = navItems.get(col); if (fresh) fresh.el.classList.remove('cn-dragging'); saveColumns(); }
+      else jumpToColumn(col); // it was a click, not a drag
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
 
 // ---- Fullscreen image lightbox (escapes the column width) ----
 // Tweet photos arrive as name=small/medium thumbnails; ask for the original.
@@ -646,6 +846,8 @@ document.getElementById('listSave').onclick = () => {
 
 // ---- Boot ----
 buildRail();
+setNavCollapsed(navCollapsed); // sets class + width + collapse-button icon
+attachNavResize(document.getElementById('navResizer'));
 render();
 
 // Global support for mouse side back/forward buttons in the main window

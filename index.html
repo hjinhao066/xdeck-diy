@@ -6,8 +6,14 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Global left navigation rail (our own chrome, not X's) -->
-  <nav id="rail"></nav>
+  <!-- Global left panel: actions toolbar + column list (our own chrome, not X's) -->
+  <nav id="colNav">
+    <div id="navTop"></div>
+    <div id="navCaption"><span id="navCaptionLabel">列</span><span id="navCount">0</span></div>
+    <div id="navList"></div>
+    <div id="navBottom"></div>
+    <div id="navResizer" title="拖动调整宽度"></div>
+  </nav>
 
   <div id="deck"></div>
 
