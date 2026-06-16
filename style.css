@@ -131,12 +131,23 @@ body.is-mac #colNav { padding-top: 38px; }
 .colnav-item.cn-dragging { opacity: 0.4; }
 #colNav.collapsed .colnav-item { justify-content: center; height: 30px; padding: 0; }
 #colNav.collapsed .colnav-item.active::before { display: none; }
+#colNav.collapsed .cn-grip,
 #colNav.collapsed .cn-label,
 #colNav.collapsed .cn-right { display: none; }
 .colnav-item .cn-dot {
   width: 7px; height: 7px; border-radius: 999px;
   background: var(--accent); flex: 0 0 auto;
 }
+.colnav-item .cn-grip {
+  width: 13px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); opacity: 0.42; flex: 0 0 auto;
+  cursor: grab;
+}
+.colnav-item:hover .cn-grip { opacity: 0.9; }
+.colnav-item.cn-dragging .cn-grip,
+body.reordering .colnav-item .cn-grip { cursor: grabbing; }
+.colnav-item .cn-grip svg { width: 13px; height: 13px; display: block; }
 .colnav-item .cn-label {
   flex: 1; min-width: 0;
   font-size: 13px; font-weight: 500; letter-spacing: -0.01em;

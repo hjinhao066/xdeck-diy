@@ -20,6 +20,7 @@ const ICONS = {
   reset:   S('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'),
   fit:     S('<polyline points="4 7 4 4 7 4"/><polyline points="20 7 20 4 17 4"/><polyline points="4 17 4 20 7 20"/><polyline points="20 17 20 20 17 20"/>'),
   user:    S('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  grip:    S('<circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/>'),
 };
 
 // CSS injected into every X column: hide X's right "who to follow" sidebar,
@@ -42,6 +43,8 @@ const THEME_KEY = 'xdeck.theme.v1';
 const DEFAULT_WIDTH = 380;
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 900;
+const FIT_VISIBLE_COLUMNS = window.XDeckLayout.DEFAULT_VISIBLE_COLUMNS;
+const FIT_MIN_WIDTH = window.XDeckLayout.MIN_FITTED_COLUMN_WIDTH;
 // Left panel (actions toolbar + column list): draggable width + collapse.
 const NAV_DEFAULT_W = 200, NAV_MIN_W = 140, NAV_MAX_W = 380, NAV_COLLAPSED_W = 56;
 // Persisted in localStorage (UI prefs, not part of the account config).
@@ -366,12 +369,39 @@ function railBtn(svg, tip, onClick, accent) {
   return b;
 }
 
+function fitColumnsToViewport() {
+  const width = window.XDeckLayout.computeFittedColumnWidth(
+    deck.getBoundingClientRect().width,
+    FIT_VISIBLE_COLUMNS,
+    FIT_MIN_WIDTH,
+  );
+  columns.forEach((col) => { col.width = width; });
+  appConfig.fitWindow = false;
+  deck.style.overflowX = 'auto';
+  saveColumns();
+  updateColumnStyles();
+}
+
+function installFitColumnsAction() {
+  const btn = document.getElementById('fitBtn');
+  if (!btn) return;
+  appConfig.fitWindow = false;
+  btn.classList.remove('accent');
+  btn.title = '按当前窗口四列等宽';
+  btn.onclick = () => {
+    fitColumnsToViewport();
+    btn.classList.add('accent');
+    setTimeout(() => btn.classList.remove('accent'), 180);
+  };
+  saveColumns();
+}
+
 // ---- Render columns ----
 const deck = document.getElementById('deck');
 
 function render() {
   deck.innerHTML = '';
-  deck.style.overflowX = appConfig.fitWindow ? 'hidden' : 'auto';
+  deck.style.overflowX = 'auto';
   columns.forEach((col) => deck.appendChild(buildColumn(col)));
   // Stagger the initial loads. Firing every column at x.com simultaneously
   // on the same session makes X's anti-bot throttle the boot, leaving every
@@ -383,20 +413,14 @@ function render() {
 }
 
 function updateColumnStyles() {
-  const isFit = appConfig.fitWindow;
-  deck.style.overflowX = isFit ? 'hidden' : 'auto';
+  deck.style.overflowX = 'auto';
   
   const cols = deck.querySelectorAll('.column');
   cols.forEach((wrap, i) => {
     const col = columns[i];
     if (!col) return;
-    if (isFit) {
-      wrap.style.flex = `${col.width} ${col.width} 0%`;
-      wrap.style.width = '';
-    } else {
-      wrap.style.flex = '0 0 auto';
-      wrap.style.width = `${col.width}px`;
-    }
+    wrap.style.flex = '0 0 auto';
+    wrap.style.width = `${col.width || DEFAULT_WIDTH}px`;
   });
 }
 
@@ -406,13 +430,8 @@ function buildColumn(col) {
   wrap.__col = col; // lets the sidebar map a column object back to its DOM node
   wrap.addEventListener('mousedown', () => setActiveCol(col), true);
 
-  const isFit = appConfig.fitWindow;
-  if (isFit) {
-    wrap.style.flex = `${col.width} ${col.width} 0%`;
-  } else {
-    wrap.style.flex = '0 0 auto';
-    wrap.style.width = (col.width || DEFAULT_WIDTH) + 'px';
-  }
+  wrap.style.flex = '0 0 auto';
+  wrap.style.width = (col.width || DEFAULT_WIDTH) + 'px';
 
   const head = document.createElement('div');
   head.className = 'col-head';
@@ -544,17 +563,6 @@ function attachResize(handle, wrap, col) {
     const startX = e.clientX;
     const startW = wrap.getBoundingClientRect().width;
     document.body.classList.add('resizing');
-    
-    const isFit = appConfig.fitWindow;
-    const cols = Array.from(deck.querySelectorAll('.column'));
-    let initialWidths = [];
-    if (isFit) {
-      initialWidths = cols.map(c => c.getBoundingClientRect().width);
-      cols.forEach((c, idx) => {
-        c.style.flex = 'none';
-        c.style.width = initialWidths[idx] + 'px';
-      });
-    }
 
     const onMove = (ev) => {
       let w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW + (ev.clientX - startX)));
@@ -564,18 +572,8 @@ function attachResize(handle, wrap, col) {
       document.body.classList.remove('resizing');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      
-      if (isFit) {
-        col.width = Math.round(wrap.getBoundingClientRect().width);
-        cols.forEach((c, idx) => {
-          columns[idx].width = Math.round(c.getBoundingClientRect().width);
-        });
-        saveColumns();
-        updateColumnStyles();
-      } else {
-        col.width = Math.round(wrap.getBoundingClientRect().width);
-        saveColumns();
-      }
+      col.width = Math.round(wrap.getBoundingClientRect().width);
+      saveColumns();
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
@@ -631,6 +629,10 @@ function renderColNav() {
   columns.forEach((col, i) => {
     const item = document.createElement('div');
     item.className = 'colnav-item';
+    const grip = document.createElement('span');
+    grip.className = 'cn-grip';
+    grip.innerHTML = ICONS.grip;
+    grip.title = '拖动排序';
     const dot = document.createElement('span'); dot.className = 'cn-dot';
     const label = document.createElement('span'); label.className = 'cn-label';
     label.textContent = col.title || col.url; label.title = '双击重命名';
@@ -642,7 +644,7 @@ function renderColNav() {
     del.addEventListener('mousedown', (e) => e.stopPropagation());
     del.addEventListener('click', (e) => { e.stopPropagation(); removeCol(col); });
     right.append(idx, del);
-    item.append(dot, label, right);
+    item.append(grip, dot, label, right);
     attachNavReorder(item, col);
     attachNavRename(label, col);
     navListEl.appendChild(item);
@@ -846,6 +848,7 @@ document.getElementById('listSave').onclick = () => {
 
 // ---- Boot ----
 buildRail();
+installFitColumnsAction();
 setNavCollapsed(navCollapsed); // sets class + width + collapse-button icon
 attachNavResize(document.getElementById('navResizer'));
 render();

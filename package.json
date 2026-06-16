@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node tests/layout-width.test.js",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win --publish never"
@@ -23,6 +24,7 @@
       "preload.js",
       "webview-preload.js",
       "index.html",
+      "shared-layout.js",
       "renderer.js",
       "style.css"
     ],
