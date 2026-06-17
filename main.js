@@ -10,23 +10,10 @@ const canFwd  = (c) => (typeof c.canGoForward === 'function' ? c.canGoForward() 
 const goBack  = (c) => (typeof c.goBack === 'function' ? c.goBack() : c.navigationHistory.goBack());
 const goFwd   = (c) => (typeof c.goForward === 'function' ? c.goForward() : c.navigationHistory.goForward());
 
-// Two-finger horizontal swipe → back/forward, injected into each column's page.
-// (When macOS already does native swipe-nav the gesture never reaches JS as a
-// wheel event, so this only kicks in when it would otherwise do nothing.)
-const SWIPE_JS = `
+// Webview navigation helpers injected into each column's page.
+const WEBVIEW_NAV_JS = `
 (function(){
-  if (window.__xdeckSwipe) return; window.__xdeckSwipe = true;
-  var acc = 0, fired = false, idle;
-  addEventListener('wheel', function(e){
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical -> ignore
-    acc += e.deltaX;
-    clearTimeout(idle);
-    idle = setTimeout(function(){ acc = 0; fired = false; }, 180);
-    if (!fired && Math.abs(acc) > 120) {
-      fired = true;
-      if (acc > 0) history.forward(); else history.back();
-    }
-  }, { passive: true });
+  if (window.__xdeckNavButtons) return; window.__xdeckNavButtons = true;
 
   // Support mouse side buttons (back and forward)
   addEventListener('mousedown', function(e){
@@ -78,6 +65,10 @@ const CHROME_UA =
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 const isMac = process.platform === 'darwin';
+
+// Keep horizontal trackpad swipes available for deck/column scrolling instead
+// of letting Chromium treat them as browser history navigation.
+app.commandLine.appendSwitch('disable-features', 'OverscrollHistoryNavigation');
 
 // Each account = its own persistent session partition (independent login/cookies).
 // 'default' keeps the original partition so existing logins are preserved.
@@ -171,16 +162,12 @@ app.whenReady().then(() => {
   ipcMain.on('open-account-window', (_e, accountId) => createWindow(accountId || 'default'));
 
   // Per-column webview behaviors: desktop UA (for every account session),
-  // right-click menu + swipe navigation.
+  // right-click menu + mouse side-button navigation.
   app.on('web-contents-created', (_e, contents) => {
     if (contents.getType() !== 'webview') return;
     try { contents.session.setUserAgent(CHROME_UA); } catch (_) {}
     contents.on('context-menu', (_ev, params) => popupContextMenu(contents, params));
-    contents.on('swipe', (_ev, dir) => {            // 3-finger trackpad swipe
-      if (dir === 'right') goBack(contents);
-      else if (dir === 'left') goFwd(contents);
-    });
-    contents.on('dom-ready', () => contents.executeJavaScript(SWIPE_JS).catch(() => {}));
+    contents.on('dom-ready', () => contents.executeJavaScript(WEBVIEW_NAV_JS).catch(() => {}));
   });
 
   const startCfg = readConfig();

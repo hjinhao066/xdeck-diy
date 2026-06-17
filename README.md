@@ -42,7 +42,6 @@ Since X Pro (formerly TweetDeck) is now paywalled under X Premium+ ($40/month) a
 - 🧭 **Built-in Navigation Control**:
   - **Header Back/Forward Buttons**: Seamlessly go back or forward in history on individual columns (ideal for Grok pages, search sub-links, and profile drill-downs).
   - **Mouse Side Button Support**: Full compatibility with mouse side back/forward buttons (X1/X2) on hovered columns.
-  - **Two-finger Swipe**: Swipe left/right inside a column to go back/forward.
 - 🖼️ **Right-click Image Menu**: Copy or save images, copy image / link address.
 - 🌙 **Theme Memory**: Easily switch between X "lights out" dark mode and clean Apple light gray style, remembering your choice.
 - 📦 **Cross-Platform**: Compiled installers and standalone binaries for both Windows and macOS.
@@ -99,7 +98,6 @@ XDeck DIY 是一款基于 Electron 开发的跨平台（Windows & macOS）桌面
 - 🧭 **内置导航控制**：
   - **列顶栏历史导航**：在每列头部集成了“后退”与“前进”按钮，支持状态自动禁用，能完美解决 Grok 页面或子帖子中无法返回的问题。
   - **鼠标侧键兼容**：深度适配鼠标侧键，悬停在任意列上点击侧键即可直接控制该列内容的前进与后退。
-  - **两指滑动**：在列内两指左右滑动即可后退 / 前进。
 - 🖼️ **图片右键菜单**：复制 / 保存图片、复制图片或链接地址。
 - 🌙 **主题记忆**：一键切换 X 原生深色模式与苹果极简浅灰模式，并在本地记住您的喜好。
 - 📦 **跨平台支持**：提供 Windows 及 macOS 的一键安装包和免安装绿色版程序。
