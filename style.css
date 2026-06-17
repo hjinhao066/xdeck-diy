@@ -90,6 +90,36 @@ body.is-mac #colNav { padding-top: 38px; }
 #colNav.collapsed #navTop .rail-btn.accent { flex: 0 0 auto; }
 #navCollapseBtn { color: var(--muted); }
 
+/* Fit button + hover flyout to pick how many equal columns fill the window. */
+.fit-wrap { position: relative; display: flex; -webkit-app-region: no-drag; }
+.fit-menu {
+  position: absolute;
+  bottom: 100%;            /* flyout sits above the button (bottom rail) */
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: row;
+  gap: 4px;
+  padding: 6px 6px 10px;   /* extra bottom keeps a hover bridge to the button */
+  background: var(--rail-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 50;
+}
+.fit-wrap:hover .fit-menu { display: flex; }
+.fit-menu-item {
+  -webkit-app-region: no-drag;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px;
+  background: transparent; color: var(--icon);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.fit-menu-item:hover { background: var(--icon-hover-bg); color: var(--text); }
+.fit-menu-item.active { background: var(--accent); color: #fff; }
+
 #navCaption {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px 5px;

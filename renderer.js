@@ -45,6 +45,7 @@ const MIN_WIDTH = 240;
 const MAX_WIDTH = 900;
 const FIT_VISIBLE_COLUMNS = window.XDeckLayout.DEFAULT_VISIBLE_COLUMNS;
 const FIT_MIN_WIDTH = window.XDeckLayout.MIN_FITTED_COLUMN_WIDTH;
+const FIT_COLS_CHOICES = [2, 3, 4, 5]; // user-pickable equal-column counts (fit button hover menu)
 // Left panel (actions toolbar + column list): draggable width + collapse.
 const NAV_DEFAULT_W = 200, NAV_MIN_W = 140, NAV_MAX_W = 380, NAV_COLLAPSED_W = 56;
 // Persisted in localStorage (UI prefs, not part of the account config).
@@ -68,6 +69,7 @@ function defaultCols() { return DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH
 let appConfig = {
   theme: 'dark',
   fitWindow: false,
+  fitCols: window.XDeckLayout.DEFAULT_VISIBLE_COLUMNS, // how many equal columns "fit" splits into
   accounts: [{ id: 'default', name: '账号 1', columns: defaultCols() }],
 };
 
@@ -80,6 +82,7 @@ function normalizeConfig(saved) {
   if (!saved) return;
   if (saved.theme) appConfig.theme = saved.theme;
   if (saved.fitWindow !== undefined) appConfig.fitWindow = saved.fitWindow;
+  if (FIT_COLS_CHOICES.includes(saved.fitCols)) appConfig.fitCols = saved.fitCols;
   if (Array.isArray(saved.accounts) && saved.accounts.length) {
     appConfig.accounts = saved.accounts.map(a => ({
       id: a.id,
@@ -94,18 +97,24 @@ function normalizeConfig(saved) {
 
 function loadConfig() {
   if (isElectron) {
-    try { normalizeConfig(window.electronAPI.loadConfig()); return; }
+    try { normalizeConfig(window.electronAPI.loadConfig()); }
     catch (e) { console.error('Failed to load config via IPC:', e); }
+  } else {
+    try {
+      const saved = {};
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) saved.columns = JSON.parse(raw);
+      const rawTheme = localStorage.getItem(THEME_KEY);
+      if (rawTheme) saved.theme = rawTheme;
+      const rawFit = localStorage.getItem('xdeck.fit.v1');
+      if (rawFit !== null) saved.fitWindow = rawFit === 'true';
+      normalizeConfig(saved);
+    } catch (_) {}
   }
+  // fitCols is a UI pref kept in localStorage in both modes (not in the IPC config).
   try {
-    const saved = {};
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) saved.columns = JSON.parse(raw);
-    const rawTheme = localStorage.getItem(THEME_KEY);
-    if (rawTheme) saved.theme = rawTheme;
-    const rawFit = localStorage.getItem('xdeck.fit.v1');
-    if (rawFit !== null) saved.fitWindow = rawFit === 'true';
-    normalizeConfig(saved);
+    const rawFitCols = parseInt(localStorage.getItem('xdeck.fitcols.v1'), 10);
+    if (FIT_COLS_CHOICES.includes(rawFitCols)) appConfig.fitCols = rawFitCols;
   } catch (_) {}
 }
 
@@ -140,6 +149,7 @@ function saveColumns() {
     localStorage.setItem(STORE_KEY, JSON.stringify(columns));
     localStorage.setItem(THEME_KEY, appConfig.theme);
     localStorage.setItem('xdeck.fit.v1', appConfig.fitWindow ? 'true' : 'false');
+    localStorage.setItem('xdeck.fitcols.v1', String(appConfig.fitCols || FIT_VISIBLE_COLUMNS));
   } catch (_) {}
 }
 
@@ -293,15 +303,29 @@ function buildRail() {
   acctBtn.id = 'acctBtn';
   bottom.appendChild(acctBtn);
 
-  const fitBtn = railBtn(ICONS.fit, '等比例适应窗口 / 滚动布局', () => {
-    appConfig.fitWindow = !appConfig.fitWindow;
-    fitBtn.classList.toggle('accent', appConfig.fitWindow);
-    saveColumns();
-    updateColumnStyles();
-  });
+  // Fit button: CLICK makes every column equal-width for the current count;
+  // HOVER reveals a menu to pick how many columns (2–5) fill the window. The
+  // deck area (window minus sidebar) splits into that many equal columns;
+  // overflow columns keep the same width and scroll.
+  const fitWrap = document.createElement('div');
+  fitWrap.className = 'fit-wrap';
+  const fitBtn = railBtn(ICONS.fit, '按窗口等宽（悬停选列数）', () => applyFitCols(appConfig.fitCols || FIT_VISIBLE_COLUMNS));
   fitBtn.id = 'fitBtn';
-  if (appConfig.fitWindow) fitBtn.classList.add('accent');
-  bottom.appendChild(fitBtn);
+  const fitMenu = document.createElement('div');
+  fitMenu.className = 'fit-menu';
+  fitMenu.id = 'fitMenu';
+  FIT_COLS_CHOICES.forEach((n) => {
+    const item = document.createElement('button');
+    item.className = 'fit-menu-item';
+    item.textContent = String(n);
+    item.title = n + ' 列等宽';
+    item.dataset.cols = String(n);
+    item.onclick = (e) => { e.stopPropagation(); applyFitCols(n); };
+    fitMenu.appendChild(item);
+  });
+  fitWrap.appendChild(fitBtn);
+  fitWrap.appendChild(fitMenu);
+  bottom.appendChild(fitWrap);
 
   const themeBtn = railBtn(ICONS.moon, '切换主题', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -369,12 +393,14 @@ function railBtn(svg, tip, onClick, accent) {
   return b;
 }
 
-function fitColumnsToViewport() {
+function fitColumnsToViewport(cols) {
+  const n = FIT_COLS_CHOICES.includes(cols) ? cols : (appConfig.fitCols || FIT_VISIBLE_COLUMNS);
   const width = window.XDeckLayout.computeFittedColumnWidth(
     deck.getBoundingClientRect().width,
-    FIT_VISIBLE_COLUMNS,
+    n,
     FIT_MIN_WIDTH,
   );
+  appConfig.fitCols = n;
   columns.forEach((col) => { col.width = width; });
   appConfig.fitWindow = false;
   deck.style.overflowX = 'auto';
@@ -382,18 +408,26 @@ function fitColumnsToViewport() {
   updateColumnStyles();
 }
 
-function installFitColumnsAction() {
+// Highlight the menu item matching the active column count.
+function refreshFitMenu() {
+  const cur = appConfig.fitCols || FIT_VISIBLE_COLUMNS;
+  document.querySelectorAll('#fitMenu .fit-menu-item').forEach((el) => {
+    el.classList.toggle('active', Number(el.dataset.cols) === cur);
+  });
+}
+
+// Apply an equal-width split for n columns, with a brief accent flash.
+function applyFitCols(n) {
+  fitColumnsToViewport(n);
   const btn = document.getElementById('fitBtn');
-  if (!btn) return;
+  if (btn) { btn.classList.add('accent'); setTimeout(() => btn.classList.remove('accent'), 180); }
+  refreshFitMenu();
+}
+
+// The fit button + menu are wired in buildRail(); just set the initial state.
+function installFitColumnsAction() {
   appConfig.fitWindow = false;
-  btn.classList.remove('accent');
-  btn.title = '按当前窗口四列等宽';
-  btn.onclick = () => {
-    fitColumnsToViewport();
-    btn.classList.add('accent');
-    setTimeout(() => btn.classList.remove('accent'), 180);
-  };
-  saveColumns();
+  refreshFitMenu();
 }
 
 // ---- Render columns ----
