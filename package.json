@@ -1,6 +1,6 @@
 {
   "name": "xdeck-diy",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "DIY multi-column X (Twitter) deck - TweetDeck/X Pro alternative for Win & Mac",
   "main": "main.js",
   "scripts": {
