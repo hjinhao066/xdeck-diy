@@ -46,6 +46,7 @@ const MAX_WIDTH = 900;
 const FIT_VISIBLE_COLUMNS = window.XDeckLayout.DEFAULT_VISIBLE_COLUMNS;
 const FIT_MIN_WIDTH = window.XDeckLayout.MIN_FITTED_COLUMN_WIDTH;
 const FIT_COLS_CHOICES = [3, 4, 5, 6]; // user-pickable equal-column counts (fit button hover menu)
+const ZOOM_BASE_WIDTH = window.XDeckLayout.ZOOM_BASE_COLUMN_WIDTH;
 // Left panel (actions toolbar + column list): draggable width + collapse.
 const NAV_DEFAULT_W = 200, NAV_MIN_W = 140, NAV_MAX_W = 380, NAV_COLLAPSED_W = 56;
 // Persisted in localStorage (UI prefs, not part of the account config).
@@ -430,6 +431,29 @@ function installFitColumnsAction() {
   refreshFitMenu();
 }
 
+// ---- Proportional column zoom ----
+function hostZoomFactor() {
+  try {
+    if (window.electronAPI && typeof window.electronAPI.getZoomFactor === 'function') {
+      return window.electronAPI.getZoomFactor();
+    }
+  } catch (_) {}
+  return 1;
+}
+
+// A column's page always lays out as a ZOOM_BASE_WIDTH viewport, then scales
+// to fill the actual column width. This keeps X in its compact single-column
+// layout at every fit level (3–6 cols) instead of jumping to the desktop
+// layout (nav rail + fixed-width feed + whitespace) once a column gets wide.
+function applyColumnZoom(wv, widthPx) {
+  try {
+    if (!wv || typeof wv.setZoomFactor !== 'function') return;
+    wv.setZoomFactor(window.XDeckLayout.computeColumnZoom(widthPx, hostZoomFactor(), ZOOM_BASE_WIDTH));
+  } catch (err) {
+    console.error('Error applying zoom to webview:', err);
+  }
+}
+
 // ---- Render columns ----
 const deck = document.getElementById('deck');
 
@@ -455,6 +479,7 @@ function updateColumnStyles() {
     if (!col) return;
     wrap.style.flex = '0 0 auto';
     wrap.style.width = `${col.width || DEFAULT_WIDTH}px`;
+    applyColumnZoom(wrap.querySelector('webview'), col.width || DEFAULT_WIDTH);
   });
 }
 
@@ -490,14 +515,7 @@ function buildColumn(col) {
   });
   wv.addEventListener('dom-ready', () => {
     wv.insertCSS(columnCSS(navHiddenFor(col)));
-    try {
-      if (window.electronAPI && typeof window.electronAPI.getZoomFactor === 'function') {
-        const currentZoom = window.electronAPI.getZoomFactor();
-        wv.setZoomFactor(currentZoom);
-      }
-    } catch (err) {
-      console.error('Error applying zoom to webview:', err);
-    }
+    applyColumnZoom(wv, col.width || DEFAULT_WIDTH);
   });
 
   // Keep the column following the FEED it's on (home / list / search /
@@ -598,15 +616,18 @@ function attachResize(handle, wrap, col) {
     const startW = wrap.getBoundingClientRect().width;
     document.body.classList.add('resizing');
 
+    const wv = wrap.querySelector('webview');
     const onMove = (ev) => {
       let w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW + (ev.clientX - startX)));
       wrap.style.width = w + 'px';
+      applyColumnZoom(wv, w);
     };
     const onUp = () => {
       document.body.classList.remove('resizing');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       col.width = Math.round(wrap.getBoundingClientRect().width);
+      applyColumnZoom(wv, col.width);
       saveColumns();
     };
     document.addEventListener('mousemove', onMove);
@@ -920,16 +941,11 @@ window.addEventListener('keydown', (e) => {
     }
     
     window.electronAPI.setZoomFactor(currentZoom);
-    
-    // Propagate zoom to all active webviews
-    document.querySelectorAll('webview').forEach(wv => {
-      try {
-        if (typeof wv.setZoomFactor === 'function') {
-          wv.setZoomFactor(currentZoom);
-        }
-      } catch (err) {
-        console.error('Error scaling webview zoom:', err);
-      }
+
+    // Re-apply each column's proportional zoom with the new host factor on top
+    document.querySelectorAll('.column').forEach(wrap => {
+      const col = wrap.__col;
+      applyColumnZoom(wrap.querySelector('webview'), (col && col.width) || DEFAULT_WIDTH);
     });
   }
 });
