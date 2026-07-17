@@ -28,8 +28,12 @@ const ICONS = {
 function columnCSS(hideNav) {
   let css = 'div[data-testid="sidebarColumn"]{display:none!important;}';
   if (hideNav) {
+    // Also stretch the feed to the full column width: at small text scales the
+    // page viewport exceeds X's ~500px desktop breakpoint, where the feed
+    // would otherwise cap at 600px and center itself with dead whitespace.
     css += 'header[role="banner"]{display:none!important;}'
-         + '[data-testid="primaryColumn"]{border-left:none!important;}';
+         + '[data-testid="primaryColumn"]{border-left:none!important;'
+         + 'max-width:none!important;width:100%!important;}';
   }
   return css;
 }
@@ -441,10 +445,11 @@ function installFitColumnsAction() {
 // ---- Proportional column zoom ----
 // Ctrl+/- adjusts textScale: a pure in-column text-size multiplier. It never
 // touches the app UI zoom (that used to shrink the columns themselves and
-// break the 3/4-col fit). Floor 0.8 keeps the effective page viewport
-// (ZOOM_BASE_WIDTH / textScale) under X's ~500px desktop-layout breakpoint.
+// break the 3/4-col fit). Below ~0.76 the page viewport passes X's ~500px
+// desktop breakpoint; columnCSS stretches the feed to full width so the
+// column stays single-column with no dead whitespace down to the floor.
 const TEXT_SCALE_KEY = 'xdeck.textscale.v1';
-const TEXT_SCALE_MIN = 0.8, TEXT_SCALE_MAX = 3.0;
+const TEXT_SCALE_MIN = 0.5, TEXT_SCALE_MAX = 3.0;
 let textScale = parseFloat(localStorage.getItem(TEXT_SCALE_KEY));
 if (!Number.isFinite(textScale)) textScale = 1;
 textScale = Math.max(TEXT_SCALE_MIN, Math.min(TEXT_SCALE_MAX, textScale));
