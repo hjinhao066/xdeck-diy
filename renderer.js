@@ -121,6 +121,13 @@ function loadConfig() {
 
 loadConfig();
 
+// Earlier builds zoomed the whole app UI via webFrame (which shrank the
+// columns and broke the fit); a non-1 factor can persist per-origin. Pin the
+// app chrome back to 1 — text size is handled per-column via textScale.
+if (isElectron && typeof window.electronAPI.setZoomFactor === 'function') {
+  try { window.electronAPI.setZoomFactor(1); } catch (_) {}
+}
+
 function partitionFor(id) { return (!id || id === 'default') ? 'persist:x' : 'persist:x-' + id; }
 function getAccount() { return appConfig.accounts.find(a => a.id === activeAccountId) || appConfig.accounts[0]; }
 
@@ -432,13 +439,17 @@ function installFitColumnsAction() {
 }
 
 // ---- Proportional column zoom ----
-function hostZoomFactor() {
-  try {
-    if (window.electronAPI && typeof window.electronAPI.getZoomFactor === 'function') {
-      return window.electronAPI.getZoomFactor();
-    }
-  } catch (_) {}
-  return 1;
+// Ctrl+/- adjusts textScale: a pure in-column text-size multiplier. It never
+// touches the app UI zoom (that used to shrink the columns themselves and
+// break the 3/4-col fit). Floor 0.8 keeps the effective page viewport
+// (ZOOM_BASE_WIDTH / textScale) under X's ~500px desktop-layout breakpoint.
+const TEXT_SCALE_KEY = 'xdeck.textscale.v1';
+const TEXT_SCALE_MIN = 0.8, TEXT_SCALE_MAX = 3.0;
+let textScale = parseFloat(localStorage.getItem(TEXT_SCALE_KEY));
+if (!Number.isFinite(textScale)) textScale = 1;
+textScale = Math.max(TEXT_SCALE_MIN, Math.min(TEXT_SCALE_MAX, textScale));
+function saveTextScale() {
+  try { localStorage.setItem(TEXT_SCALE_KEY, String(textScale)); } catch (_) {}
 }
 
 // A column's page always lays out as a ZOOM_BASE_WIDTH viewport, then scales
@@ -448,10 +459,17 @@ function hostZoomFactor() {
 function applyColumnZoom(wv, widthPx) {
   try {
     if (!wv || typeof wv.setZoomFactor !== 'function') return;
-    wv.setZoomFactor(window.XDeckLayout.computeColumnZoom(widthPx, hostZoomFactor(), ZOOM_BASE_WIDTH));
+    wv.setZoomFactor(window.XDeckLayout.computeColumnZoom(widthPx, textScale, ZOOM_BASE_WIDTH));
   } catch (err) {
     console.error('Error applying zoom to webview:', err);
   }
+}
+
+function applyAllColumnZooms() {
+  document.querySelectorAll('.column').forEach(wrap => {
+    const col = wrap.__col;
+    applyColumnZoom(wrap.querySelector('webview'), (col && col.width) || DEFAULT_WIDTH);
+  });
 }
 
 // ---- Render columns ----
@@ -925,27 +943,19 @@ window.addEventListener('mousedown', (e) => {
   }
 });
 
-// Sync zoom level (Ctrl+Plus, Ctrl+Minus, Ctrl+Zero) to webviews
+// Ctrl+Plus / Ctrl+Minus / Ctrl+Zero: in-column text size only. Column count
+// and widths never move; each webview just re-applies width-zoom × textScale.
 window.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
     e.preventDefault();
-    if (!window.electronAPI || typeof window.electronAPI.getZoomFactor !== 'function') return;
-    
-    let currentZoom = window.electronAPI.getZoomFactor();
     if (e.key === '=' || e.key === '+') {
-      currentZoom = Math.min(3.0, Math.round((currentZoom + 0.1) * 10) / 10);
+      textScale = Math.min(TEXT_SCALE_MAX, Math.round((textScale + 0.1) * 10) / 10);
     } else if (e.key === '-') {
-      currentZoom = Math.max(0.5, Math.round((currentZoom - 0.1) * 10) / 10);
-    } else if (e.key === '0') {
-      currentZoom = 1.0;
+      textScale = Math.max(TEXT_SCALE_MIN, Math.round((textScale - 0.1) * 10) / 10);
+    } else {
+      textScale = 1.0;
     }
-    
-    window.electronAPI.setZoomFactor(currentZoom);
-
-    // Re-apply each column's proportional zoom with the new host factor on top
-    document.querySelectorAll('.column').forEach(wrap => {
-      const col = wrap.__col;
-      applyColumnZoom(wrap.querySelector('webview'), (col && col.width) || DEFAULT_WIDTH);
-    });
+    saveTextScale();
+    applyAllColumnZooms();
   }
 });

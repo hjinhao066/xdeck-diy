@@ -7,6 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAccountWindow: (id) => ipcRenderer.send('open-account-window', id),
   setActivePartition: (partition) => ipcRenderer.send('set-active-partition', partition),
   setZoomFactor: (factor) => webFrame.setZoomFactor(factor),
-  getZoomFactor: () => webFrame.getZoomFactor(),
   onOpenImage: (cb) => ipcRenderer.on('open-image', (_e, src) => cb(src))
 });

@@ -20,15 +20,15 @@
   }
 
   // Proportional zoom: a column always lays out as a ZOOM_BASE_COLUMN_WIDTH
-  // viewport, then scales to fill its actual width. hostZoom (the app-level
-  // Ctrl+/- zoom) multiplies on top as a text-size control.
-  function computeColumnZoom(columnWidth, hostZoom, baseWidth) {
+  // viewport, then scales to fill its actual width. textScale (Ctrl+/-)
+  // multiplies on top as a pure text-size control; it never resizes columns.
+  function computeColumnZoom(columnWidth, textScale, baseWidth) {
     const base = Number.isFinite(baseWidth) && baseWidth > 0
       ? baseWidth
       : ZOOM_BASE_COLUMN_WIDTH;
-    const host = Number.isFinite(hostZoom) && hostZoom > 0 ? hostZoom : 1;
+    const scale = Number.isFinite(textScale) && textScale > 0 ? textScale : 1;
     const width = Number.isFinite(columnWidth) && columnWidth > 0 ? columnWidth : base;
-    const zoom = (width / base) * host;
+    const zoom = (width / base) * scale;
     return Math.min(MAX_ZOOM_FACTOR, Math.max(MIN_ZOOM_FACTOR, zoom));
   }
 
