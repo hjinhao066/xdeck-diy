@@ -24,9 +24,11 @@
     <select id="presetSel">
       <option value="">— 自定义 —</option>
       <option value="https://x.com/home">主页 Home</option>
+      <option value="https://x.com/i/lists/2062302318897611056">AI 关注列表</option>
+      <option value="https://x.com/i/lists/2059566674173743297">美股关注列表</option>
+      <option value="https://x.com/i/bookmarks">收藏 / 书签 Bookmarks</option>
       <option value="https://x.com/notifications">通知 Notifications</option>
       <option value="https://x.com/messages">私信 Messages</option>
-      <option value="https://x.com/i/bookmarks">书签 Bookmarks</option>
       <option value="https://x.com/i/lists">我的列表 Lists（总览）</option>
       <option value="https://x.com/search?q=AVGO%20OR%20Broadcom&f=live">搜索: AVGO/Broadcom</option>
       <option value="https://x.com/search?q=NVDA%20OR%20Nvidia&f=live">搜索: NVDA</option>
@@ -38,6 +40,7 @@
     <label>URL（任意 x.com 页面：列表、个人页、搜索…）</label>
     <input id="urlInput" placeholder="https://x.com/..." />
     <div class="row">
+      <button type="button" class="btn left" id="useCurrentUrlBtn" style="display:none;">使用当前网页</button>
       <button class="btn" id="dlgCancel">取消</button>
       <button class="btn primary" id="dlgSave">保存</button>
     </div>
@@ -59,6 +62,24 @@
       <button class="btn left" id="openListsBtn">打开我的列表 ↗</button>
       <button class="btn" id="listCancel">取消</button>
       <button class="btn primary" id="listSave">保存</button>
+    </div>
+  </dialog>
+
+  <!-- Default columns settings dialog -->
+  <dialog id="defaultColsDialog">
+    <div class="dlg-header">
+      <h3 id="defaultColsDlgTitle">默认打开的列设置</h3>
+      <p class="hint">配置每次启动或恢复默认时打开的列。你可以自由添加、修改网址与标题、调整顺序或删除。</p>
+    </div>
+    <div id="defaultColsList" class="default-cols-list"></div>
+    <div class="default-cols-toolbar">
+      <button type="button" class="btn" id="addDefaultColBtn">➕ 添加一列</button>
+      <button type="button" class="btn" id="setCurAsDefaultBtn" title="把当前窗口正在展示的列设为默认">📌 将当前列设为默认</button>
+      <button type="button" class="btn" id="resetSystemDefaultBtn" title="恢复为系统预设 (主页 / AI / 美股 / 收藏)">🔄 初始推荐预设</button>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" id="defaultColsCancel">取消</button>
+      <button type="button" class="btn primary" id="defaultColsSave">保存并应用</button>
     </div>
   </dialog>
 

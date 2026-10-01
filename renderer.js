@@ -21,6 +21,7 @@ const ICONS = {
   fit:     S('<polyline points="4 7 4 4 7 4"/><polyline points="20 7 20 4 17 4"/><polyline points="4 17 4 20 7 20"/><polyline points="20 17 20 20 17 20"/>'),
   user:    S('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
   grip:    S('<circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/>'),
+  sliders: S('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>'),
 };
 
 // CSS injected into every X column: hide X's right "who to follow" sidebar,
@@ -61,13 +62,19 @@ function saveNavPrefs() {
 }
 
 const DEFAULT_COLUMNS = [
-  { title: '主页', url: 'https://x.com/home' },
-  { title: '美股', url: 'https://x.com/i/lists/2059566674173743297' },
-  { title: 'AI', url: 'https://x.com/i/lists/2062302318897611056' },
-  { title: '书签', url: 'https://x.com/i/bookmarks' },
+  { title: '主页', url: 'https://x.com/home', manualTitle: true },
+  { title: 'AI', url: 'https://x.com/i/lists/2062302318897611056', manualTitle: true },
+  { title: '美股', url: 'https://x.com/i/lists/2059566674173743297', manualTitle: true },
+  { title: '收藏', url: 'https://x.com/i/bookmarks', manualTitle: true },
 ];
 
-function defaultCols() { return DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c })); }
+function defaultCols(account) {
+  const acc = account || (typeof getAccount === 'function' ? getAccount() : null);
+  const list = (acc && Array.isArray(acc.defaultColumns) && acc.defaultColumns.length)
+    ? acc.defaultColumns
+    : DEFAULT_COLUMNS;
+  return list.map(c => ({ width: DEFAULT_WIDTH, ...c }));
+}
 
 // theme/fitWindow are global; columns are PER ACCOUNT. Each account has its own
 // independent login session (partition) and its own deck layout.
@@ -93,10 +100,20 @@ function normalizeConfig(saved) {
       id: a.id,
       name: a.name || '账号',
       columns: (a.columns || []).map(c => ({ width: DEFAULT_WIDTH, ...c })),
+      defaultColumns: Array.isArray(a.defaultColumns) && a.defaultColumns.length
+        ? a.defaultColumns.map(c => ({ width: DEFAULT_WIDTH, ...c }))
+        : undefined,
     }));
   } else if (Array.isArray(saved.columns)) {
     // migrate the old single-account config into the accounts model
-    appConfig.accounts = [{ id: 'default', name: '账号 1', columns: saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c })) }];
+    appConfig.accounts = [{
+      id: 'default',
+      name: '账号 1',
+      columns: saved.columns.map(c => ({ width: DEFAULT_WIDTH, ...c })),
+      defaultColumns: Array.isArray(saved.defaultColumns)
+        ? saved.defaultColumns.map(c => ({ width: DEFAULT_WIDTH, ...c }))
+        : undefined,
+    }];
   }
 }
 
@@ -145,12 +162,39 @@ if (isElectron && window.electronAPI.setActivePartition) {
   window.electronAPI.setActivePartition(partitionFor(activeAccountId));
 }
 
+function showToast(msg) {
+  let toast = document.getElementById('deckToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'deckToast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast.__timer);
+  toast.__timer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function setCurAsDefaultAndNotify() {
+  const acc = getAccount();
+  acc.defaultColumns = columns.map(c => ({
+    title: c.title || '列',
+    url: c.url,
+    manualTitle: true,
+    hideNav: navHiddenFor(c),
+    width: c.width || DEFAULT_WIDTH,
+  }));
+  saveColumns();
+  showToast(`已将当前 ${columns.length} 列保存为每次默认打开项！`);
+}
+
 function saveColumns() {
-  getAccount().columns = columns; // columns is a live ref to the active account's array
+  const acc = getAccount();
+  acc.columns = columns; // columns is a live ref to the active account's array
   if (isElectron && window.electronAPI.saveAccount) {
     try {
       window.electronAPI.saveAccount({
-        account: getAccount(),
+        account: acc,
         theme: appConfig.theme,
         fitWindow: appConfig.fitWindow,
         lastActiveAccount: activeAccountId,
@@ -269,6 +313,9 @@ function buildAccountMenu() {
     b.onclick = () => { menu.classList.remove('open'); fn(); };
     menu.appendChild(b);
   };
+  item('⚙️ 默认打开设置（编辑默认列）', '', openDefaultColsDialog);
+  item('📌 将当前列保存为默认打开', '', setCurAsDefaultAndNotify);
+  const sep2 = document.createElement('div'); sep2.className = 'acct-sep'; menu.appendChild(sep2);
   item('➕ 新账号（开新窗口）', '', addAccountAndOpen);
   item('🪟 当前账号开新窗口', '', openCurrentInNewWindow);
   item('✏️ 重命名当前账号', '', renameAccount);
@@ -339,6 +386,10 @@ function buildRail() {
   fitWrap.appendChild(fitMenu);
   bottom.appendChild(fitWrap);
 
+  const defaultColsBtn = railBtn(ICONS.sliders, '默认打开设置（编辑每次默认打开的列）', openDefaultColsDialog);
+  defaultColsBtn.id = 'defaultColsBtn';
+  bottom.appendChild(defaultColsBtn);
+
   const themeBtn = railBtn(ICONS.moon, '切换主题', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     applyTheme(next);
@@ -347,10 +398,11 @@ function buildRail() {
   bottom.appendChild(themeBtn);
 
   bottom.appendChild(railBtn(ICONS.reset, '恢复默认布局', () => {
-    if (confirm('恢复默认列布局？（自定义的列会清空）')) {
-      columns = DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c }));
+    if (confirm('恢复默认列布局？（将按默认设置打开主页、AI、美股、收藏等列）')) {
+      columns = defaultCols();
       saveColumns();
       render();
+      showToast('已恢复默认列布局');
     }
   }));
 
@@ -541,29 +593,23 @@ function buildColumn(col) {
     applyColumnZoom(wv, col.width || DEFAULT_WIDTH);
   });
 
-  // Keep the column following the FEED it's on (home / list / search /
-  // bookmarks / profile), persisting that so it restores next launch. We
-  // deliberately ignore transient drill-downs — opening a single tweet, a
-  // photo/video lightbox, compose, etc. — so a column never gets saved as a
-  // near-black photo overlay and the header keeps showing the feed name.
-  const TRANSIENT = /\/status\/|\/photo\/|\/video\/|\/compose\/|\/intent\/|\/i\/lists\/\d+\/[a-z]/i;
+  // In-column navigation (clicking tweets, profiles, lists, etc.) is browsing
+  // and must NOT overwrite the column's defined URL.
   const syncState = () => {
     const url = wv.getURL();
-    if (!url || !/^https?:/.test(url) || TRANSIENT.test(url)) return;
-    let changed = false;
-    if (url !== col.url) { col.url = url; changed = true; }
-    const t = (wv.getTitle() || '')
-      .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
-      .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"
-      .trim();
-    // Auto-name the column from the page title — unless the user manually
-    // renamed it (col.manualTitle), in which case their name sticks.
-    if (t && t !== col.title && !col.manualTitle) {
-      col.title = t; title.textContent = t;
-      const nav = navItems.get(col); if (nav) nav.label.textContent = t;
-      changed = true;
+    if (!url || !/^https?:/.test(url)) return;
+    // Auto-name only if title was not manually set or empty
+    if (!col.manualTitle && !col.title) {
+      const t = (wv.getTitle() || '')
+        .replace(/^\(\d+\+?\)\s*/, '')   // drop unread-count prefix like "(3) "
+        .replace(/\s*[\/|]\s*X\s*$/i, '') // drop trailing " / X"
+        .trim();
+      if (t && t !== col.title) {
+        col.title = t; title.textContent = t;
+        const nav = navItems.get(col); if (nav) nav.label.textContent = t;
+        saveColumns();
+      }
     }
-    if (changed) saveColumns(); // title updates fire constantly; only persist real changes
   };
   wv.addEventListener('did-navigate', syncState);
   wv.addEventListener('did-navigate-in-page', syncState);
@@ -874,12 +920,14 @@ const presetSel = document.getElementById('presetSel');
 const titleInput = document.getElementById('titleInput');
 const urlInput = document.getElementById('urlInput');
 const dlgTitle = document.getElementById('dlgTitle');
+const useCurrentUrlBtn = document.getElementById('useCurrentUrlBtn');
 let editIndex = null;
 
 presetSel.onchange = () => {
   if (presetSel.value) {
     urlInput.value = presetSel.value;
-    if (!titleInput.value) titleInput.value = presetSel.options[presetSel.selectedIndex].text;
+    const text = presetSel.options[presetSel.selectedIndex].text;
+    titleInput.value = text.split(/[\s\/]/)[0];
   }
 };
 function openDialog(idx) {
@@ -888,6 +936,26 @@ function openDialog(idx) {
   presetSel.value = '';
   titleInput.value = editIndex === null ? '' : (columns[editIndex].title || '');
   urlInput.value = editIndex === null ? '' : (columns[editIndex].url || '');
+
+  if (useCurrentUrlBtn) {
+    if (editIndex !== null) {
+      const wrap = wrapForCol(columns[editIndex]);
+      const wv = wrap ? wrap.querySelector('webview') : null;
+      const curUrl = wv ? wv.getURL() : null;
+      if (curUrl && /^https?:/.test(curUrl) && curUrl !== columns[editIndex].url) {
+        useCurrentUrlBtn.style.display = 'inline-flex';
+        useCurrentUrlBtn.onclick = () => {
+          urlInput.value = curUrl;
+          const curTitle = (wv.getTitle() || '').replace(/^\(\d+\+?\)\s*/, '').replace(/\s*[\/|]\s*X\s*$/i, '').trim();
+          if (curTitle && !titleInput.value) titleInput.value = curTitle;
+        };
+      } else {
+        useCurrentUrlBtn.style.display = 'none';
+      }
+    } else {
+      useCurrentUrlBtn.style.display = 'none';
+    }
+  }
   dlg.showModal();
 }
 document.getElementById('dlgCancel').onclick = () => dlg.close();
@@ -896,8 +964,12 @@ document.getElementById('dlgSave').onclick = () => {
   if (!url) return;
   if (!/^https?:\/\//.test(url)) url = 'https://' + url;
   const title = titleInput.value.trim() || url;
-  if (editIndex === null) addColumn({ title, url });
-  else { columns[editIndex] = { ...columns[editIndex], title, url }; saveColumns(); render(); }
+  if (editIndex === null) addColumn({ title, url, manualTitle: true });
+  else {
+    columns[editIndex] = { ...columns[editIndex], title, url, manualTitle: true };
+    saveColumns();
+    render();
+  }
   dlg.close();
 };
 
@@ -923,6 +995,203 @@ document.getElementById('listSave').onclick = () => {
   addColumn({ title: listTitleInput.value.trim() || 'X 列表', url });
   listDlg.close();
 };
+
+// ---- Default Columns Management (每次默认打开的列设置) ----
+const defaultColsDlg = document.getElementById('defaultColsDialog');
+const defaultColsListEl = document.getElementById('defaultColsList');
+
+const DEFAULT_PRESETS = [
+  { text: '— 快速填入预设 —', url: '', title: '' },
+  { text: '主页 Home', url: 'https://x.com/home', title: '主页' },
+  { text: 'AI 关注列表', url: 'https://x.com/i/lists/2062302318897611056', title: 'AI' },
+  { text: '美股关注列表', url: 'https://x.com/i/lists/2059566674173743297', title: '美股' },
+  { text: '收藏 / 书签 Bookmarks', url: 'https://x.com/i/bookmarks', title: '收藏' },
+  { text: '通知 Notifications', url: 'https://x.com/notifications', title: '通知' },
+  { text: '私信 Messages', url: 'https://x.com/messages', title: '私信' },
+  { text: '我的列表 Lists', url: 'https://x.com/i/lists', title: '我的列表' },
+  { text: '搜索: NVDA', url: 'https://x.com/search?q=NVDA%20OR%20Nvidia&f=live', title: 'NVDA' },
+  { text: '搜索: $SPY/$QQQ', url: 'https://x.com/search?q=%24SPY%20OR%20%24QQQ&f=live', title: '$SPY/$QQQ' },
+  { text: '新闻 News', url: 'https://x.com/explore/tabs/news', title: '新闻' },
+];
+
+function renderDefaultColsRows(items) {
+  if (!defaultColsListEl) return;
+  defaultColsListEl.innerHTML = '';
+  items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'default-col-row';
+
+    const num = document.createElement('span');
+    num.className = 'default-col-num';
+    num.textContent = String(idx + 1);
+
+    const fields = document.createElement('div');
+    fields.className = 'default-col-fields';
+
+    const inputs = document.createElement('div');
+    inputs.className = 'default-col-inputs';
+
+    const titleInp = document.createElement('input');
+    titleInp.type = 'text';
+    titleInp.className = 'default-col-title';
+    titleInp.placeholder = '标题（如：AI）';
+    titleInp.value = item.title || '';
+
+    const urlInp = document.createElement('input');
+    urlInp.type = 'text';
+    urlInp.className = 'default-col-url';
+    urlInp.placeholder = 'URL 链接（https://x.com/...）';
+    urlInp.value = item.url || '';
+
+    inputs.append(titleInp, urlInp);
+
+    const sel = document.createElement('select');
+    sel.className = 'default-col-preset';
+    DEFAULT_PRESETS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.url;
+      opt.dataset.title = p.title;
+      opt.textContent = p.text;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+      if (sel.value) {
+        urlInp.value = sel.value;
+        const opt = sel.options[sel.selectedIndex];
+        titleInp.value = opt.dataset.title || '';
+      }
+    };
+
+    fields.append(inputs, sel);
+
+    const btns = document.createElement('div');
+    btns.className = 'default-col-btns';
+
+    const upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'icon-btn';
+    upBtn.textContent = '▲';
+    upBtn.title = '上移';
+    upBtn.disabled = (idx === 0);
+    upBtn.onclick = () => {
+      const cur = collectDefaultColsFromUI();
+      if (idx > 0) {
+        [cur[idx - 1], cur[idx]] = [cur[idx], cur[idx - 1]];
+        renderDefaultColsRows(cur);
+      }
+    };
+
+    const downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'icon-btn';
+    downBtn.textContent = '▼';
+    downBtn.title = '下移';
+    downBtn.disabled = (idx === items.length - 1);
+    downBtn.onclick = () => {
+      const cur = collectDefaultColsFromUI();
+      if (idx < cur.length - 1) {
+        [cur[idx], cur[idx + 1]] = [cur[idx + 1], cur[idx]];
+        renderDefaultColsRows(cur);
+      }
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'icon-btn danger';
+    delBtn.textContent = '✕';
+    delBtn.title = '删除';
+    delBtn.onclick = () => {
+      const cur = collectDefaultColsFromUI();
+      if (cur.length <= 1) {
+        alert('至少保留一列');
+        return;
+      }
+      cur.splice(idx, 1);
+      renderDefaultColsRows(cur);
+    };
+
+    btns.append(upBtn, downBtn, delBtn);
+    row.append(num, fields, btns);
+    defaultColsListEl.appendChild(row);
+  });
+}
+
+function collectDefaultColsFromUI() {
+  if (!defaultColsListEl) return [];
+  const rows = defaultColsListEl.querySelectorAll('.default-col-row');
+  const items = [];
+  rows.forEach(r => {
+    const t = r.querySelector('.default-col-title').value.trim();
+    let u = r.querySelector('.default-col-url').value.trim();
+    if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
+    items.push({ title: t || u, url: u, manualTitle: true });
+  });
+  return items;
+}
+
+function openDefaultColsDialog() {
+  if (!defaultColsDlg) return;
+  const acc = getAccount();
+  const list = defaultCols(acc);
+  renderDefaultColsRows(list);
+  defaultColsDlg.showModal();
+}
+
+const defaultColsCancelBtn = document.getElementById('defaultColsCancel');
+if (defaultColsCancelBtn) defaultColsCancelBtn.onclick = () => defaultColsDlg.close();
+
+const addDefaultColBtn = document.getElementById('addDefaultColBtn');
+if (addDefaultColBtn) {
+  addDefaultColBtn.onclick = () => {
+    const cur = collectDefaultColsFromUI();
+    cur.push({ title: '新列表', url: 'https://x.com/home', manualTitle: true });
+    renderDefaultColsRows(cur);
+  };
+}
+
+const setCurAsDefaultBtn = document.getElementById('setCurAsDefaultBtn');
+if (setCurAsDefaultBtn) {
+  setCurAsDefaultBtn.onclick = () => {
+    const cur = columns.map(c => ({
+      title: c.title || '列',
+      url: c.url,
+      manualTitle: true,
+    }));
+    renderDefaultColsRows(cur);
+    showToast('已载入当前窗口列，请确认后点击「保存并应用」');
+  };
+}
+
+const resetSystemDefaultBtn = document.getElementById('resetSystemDefaultBtn');
+if (resetSystemDefaultBtn) {
+  resetSystemDefaultBtn.onclick = () => {
+    renderDefaultColsRows(DEFAULT_COLUMNS.map(c => ({ ...c })));
+    showToast('已载入系统推荐预设（主页 / AI / 美股 / 收藏）');
+  };
+}
+
+const defaultColsSaveBtn = document.getElementById('defaultColsSave');
+if (defaultColsSaveBtn) {
+  defaultColsSaveBtn.onclick = () => {
+    const items = collectDefaultColsFromUI().filter(c => !!c.url);
+    if (!items.length) {
+      alert('请至少输入一个有效网址');
+      return;
+    }
+    const acc = getAccount();
+    acc.defaultColumns = items.map(c => ({
+      width: DEFAULT_WIDTH,
+      ...c,
+    }));
+    // Apply immediately to current columns
+    columns = acc.defaultColumns.map(c => ({ ...c }));
+    acc.columns = columns;
+    saveColumns();
+    render();
+    defaultColsDlg.close();
+    showToast('默认打开的列已更新并立即生效！');
+  };
+}
 
 // ---- Boot ----
 buildRail();

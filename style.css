@@ -456,3 +456,120 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; align-items: c
 .btn.primary:hover { filter: brightness(1.06); }
 .btn.left { margin-right: auto; background: transparent; color: var(--accent); }
 .btn.left:hover { background: var(--accent-soft); }
+
+
+/* ===== Default Columns Management Dialog ===== */
+#defaultColsDialog {
+  width: 600px;
+  max-width: 92vw;
+  max-height: 85vh;
+  padding: 24px;
+}
+#defaultColsDialog .dlg-header {
+  margin-bottom: 12px;
+}
+.default-cols-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+  max-height: 48vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.default-cols-list::-webkit-scrollbar {
+  width: 6px;
+}
+.default-cols-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+.default-col-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--pill-bg);
+  border: 1px solid var(--hairline);
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.default-col-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 22px;
+  text-align: center;
+  flex: 0 0 22px;
+}
+.default-col-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.default-col-inputs {
+  display: flex;
+  gap: 8px;
+}
+.default-col-inputs input.default-col-title {
+  width: 130px;
+  flex: 0 0 130px;
+}
+.default-col-inputs input.default-col-url {
+  flex: 1;
+  min-width: 0;
+}
+.default-col-preset {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--app-bg);
+  color: var(--muted);
+}
+.default-col-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.default-col-btns .icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.default-col-btns .icon-btn.danger:hover {
+  background: rgba(244, 33, 46, 0.2);
+  color: #f4212e;
+}
+.default-cols-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* ===== Deck Toast Notification ===== */
+#deckToast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--card-head);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 9999;
+}
+#deckToast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
