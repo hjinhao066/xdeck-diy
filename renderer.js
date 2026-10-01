@@ -69,7 +69,14 @@ const DEFAULT_COLUMNS = [
 ];
 
 function defaultCols(account) {
-  const acc = account || (typeof getAccount === 'function' ? getAccount() : null);
+  let acc = account;
+  if (!acc) {
+    try {
+      if (typeof getAccount === 'function') acc = getAccount();
+    } catch (_) {
+      acc = null;
+    }
+  }
   const list = (acc && Array.isArray(acc.defaultColumns) && acc.defaultColumns.length)
     ? acc.defaultColumns
     : DEFAULT_COLUMNS;
@@ -82,7 +89,7 @@ let appConfig = {
   theme: 'dark',
   fitWindow: false,
   fitCols: window.XDeckLayout.DEFAULT_VISIBLE_COLUMNS, // how many equal columns "fit" splits into
-  accounts: [{ id: 'default', name: '账号 1', columns: defaultCols() }],
+  accounts: [{ id: 'default', name: '账号 1', columns: DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c })) }],
 };
 
 // This window is bound to one account, passed by the main process via the URL.
