@@ -157,7 +157,12 @@ if (isElectron && typeof window.electronAPI.setZoomFactor === 'function') {
 }
 
 function partitionFor(id) { return (!id || id === 'default') ? 'persist:x' : 'persist:x-' + id; }
-function getAccount() { return appConfig.accounts.find(a => a.id === activeAccountId) || appConfig.accounts[0]; }
+function getAccount() {
+  if (!appConfig || !Array.isArray(appConfig.accounts) || !appConfig.accounts.length) {
+    return { id: 'default', name: '账号 1', columns: DEFAULT_COLUMNS.map(c => ({ width: DEFAULT_WIDTH, ...c })) };
+  }
+  return appConfig.accounts.find(a => a.id === activeAccountId) || appConfig.accounts[0];
+}
 
 // Make sure this window's account exists (e.g. first run, or a freshly created one).
 if (!appConfig.accounts.find(a => a.id === activeAccountId)) {

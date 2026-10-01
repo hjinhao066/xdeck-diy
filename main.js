@@ -115,8 +115,21 @@ function createWindow(accountId = 'default') {
   // win.webContents.openDevTools({ mode: 'detach' });
 }
 
-app.whenReady().then(() => {
-  const configPath = path.join(app.getPath('userData'), 'config.json');
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      if (wins[0].isMinimized()) wins[0].restore();
+      wins[0].focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    const configPath = path.join(app.getPath('userData'), 'config.json');
   const readConfig = () => {
     try {
       if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -178,6 +191,7 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('window-all-closed', () => {
-  if (!isMac) app.quit();
-});
+  app.on('window-all-closed', () => {
+    if (!isMac) app.quit();
+  });
+}
